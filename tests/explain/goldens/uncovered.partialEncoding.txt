@@ -1,0 +1,1 @@
+Your Breaker move lies in territory this build's encoding declares out of scope (partial encoding). The source argument covers it by Das–Valla 2026, Lemma 6 (CGT 5(2), pp. 3:3). This is a limitation of this build's domain, not a counterexample to the published proof. You can rewind, or start a Sandbox session. (intended 4-hole blocked)

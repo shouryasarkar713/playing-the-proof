@@ -1,0 +1,1 @@
+The strategy's reply is mathematically valid, but every admissible placement falls outside this build's play window — a domain limit of this build, not a strategy failure. You can rewind with “Back one step” and try a different move, or start a Sandbox session; the play window is a fixed parameter of this build. (no admissible placement inside the window)

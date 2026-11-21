@@ -1,0 +1,1 @@
+Playing with this application demonstrates the encoded constructions and checks their geometric facts exactly, move by move; it does not re-prove the theorem. The proofs are those of the cited authors.

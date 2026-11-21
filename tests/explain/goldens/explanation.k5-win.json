@@ -1,0 +1,1 @@
+{"claims":[{"text":"Witness computed by exact enumeration.","tier":"verified-geometry"}],"evidence":[{"operands":"p1,p2,p4,p5,p3","predicate":"terminal-witness","result":"verified 5-hole"}],"headline":"5-hole achieved: game over.","invariantNotes":[],"nodeId":"k5:win","sourceRef":"Das–Valla 2026, Lemma 6 (CGT 5(2), pp. 3:3)","threats":[]}
