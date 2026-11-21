@@ -1,0 +1,11 @@
+{
+  "id": "r3-blocked-pentagon-supplied",
+  "note": "Phase-13 bootstrap pack (FALLBACK7): the selected pentagon is blocked by two interior points, so the supplied record is rejected invalid-hole with operands — a hard rejection, never a fallback.",
+  "strategy": "esmb-k6",
+  "strategyStart": {
+    "points": [[0, 0], [10, 0], [13, 8], [5, 13], [-3, 8], [5, 5], [7, 6]],
+    "selectedHole": [[0, 0], [10, 0], [13, 8], [5, 13], [-3, 8]]
+  },
+  "moves": [],
+  "expect": { "startRejected": "invalid-hole" }
+}

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Playing the Proof — Erdős–Szekeres Maker–Breaker Laboratory</title>
+    <!-- Typography: IBM Plex Sans (chrome), STIX Two Text (math prose,
+         with STIX Two Math as the upright symbol backstop), IBM Plex
+         Mono (data) — all self-hosted from public/fonts/, fully
+         offline-capable. -->
+    <link
+      rel="preload"
+      href="/fonts/plex-sans-700.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/stix-text-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <script>
+      // Pre-paint theme resolution: stored choice, else system preference.
+      // Presentation-only (ui/theme.ts owns the toggle + persistence).
+      try {
+        var t = localStorage.getItem("ptp-theme");
+        if (t !== "light" && t !== "dark") {
+          t = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        }
+        document.documentElement.dataset.theme = t;
+        document.documentElement.style.colorScheme = t;
+      } catch (e) {
+        /* storage unavailable — light default stands */
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <header id="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 2.6 21.4 9.4 17.8 21 6.2 21 2.6 9.4Z"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linejoin="round"
+              />
+              <circle cx="9.4" cy="10.6" r="1.5" fill="currentColor" />
+              <circle cx="14.6" cy="8.8" r="1.5" fill="currentColor" />
+              <circle cx="12" cy="16.4" r="1.5" fill="currentColor" />
+            </svg>
+          </span>
+          <div class="brand-text">
+            <h1 class="brand-name">Playing the Proof</h1>
+            <p class="brand-sub">Erdős–Szekeres Maker–Breaker laboratory</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button
+            id="theme-toggle"
+            type="button"
+            aria-pressed="false"
+            title="Toggle dark theme"
+          >
+            <svg
+              class="ico-sun"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="4.2"
+                stroke="currentColor"
+                stroke-width="1.7"
+              />
+              <path
+                d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+              />
+            </svg>
+            <svg
+              class="ico-moon"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M20.2 14.5A8.3 8.3 0 0 1 9.5 3.8a8.3 8.3 0 1 0 10.7 10.7Z"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span class="sr-only">Toggle dark theme</span>
+          </button>
+        </div>
+      </header>
+      <main id="layout">
+        <div id="board-wrap" data-fig="Erdős–Szekeres: the happy ending problem">
+          <svg
+            id="board"
+            role="img"
+            aria-label="Point plane: the evolving Maker–Breaker configuration"
+          ></svg>
+          <div class="board-hint" aria-hidden="true">
+            <span><i class="dot mk"></i>Maker disc</span>
+            <span><i class="dot br"></i>Breaker diamond</span>
+            <span class="hint-quiet">shapes double-encode ownership</span>
+          </div>
+        </div>
+        <aside id="panels">
+          <section
+            id="panel-why"
+            aria-label="Why does this move work?"
+          ></section>
+          <section id="panel-strategy" aria-label="Strategy state"></section>
+          <section
+            id="panel-invariants"
+            aria-label="Invariant status"
+          ></section>
+          <section id="panel-timeline" aria-label="Timeline"></section>
+        </aside>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

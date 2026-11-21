@@ -1,0 +1,11 @@
+{
+  "id": "k5-blocked",
+  "strategyId": "esmb-k5",
+  "moves": { "b1": [10, 0], "b2": [10, 9], "b3": ["605/56", "101/8"] },
+  "expect": {
+    "terminal": "maker-won",
+    "points": 7,
+    "nodeId": "k5:win",
+    "cases": ["k5:any", "k5:b2:one-interior", "k5:b3:blocked-intended"]
+  }
+}

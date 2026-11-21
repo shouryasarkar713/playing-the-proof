@@ -1,0 +1,11 @@
+{
+  "id": "r2-swallow-wedge-b1",
+  "note": "Swallow wedge (Phase-11 wedge walk): B2=(10,-10) lies outside the opening triangle but swallows B1, so classifyFour reports one-interior with interior=p2 (ownership irrelevant); the co-shoulder construction succeeds and B3=(-30,-30) completes the 7-point win.",
+  "strategy": "esmb-k5",
+  "moves": [
+    { "owner": "breaker", "at": ["10/1", "0/1"] },
+    { "owner": "breaker", "at": ["10/1", "-10/1"] },
+    { "owner": "breaker", "at": ["-30/1", "-30/1"] }
+  ],
+  "expect": { "terminal": "maker-won" }
+}

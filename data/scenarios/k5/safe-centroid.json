@@ -1,0 +1,12 @@
+{
+  "id": "k5-breaker-self-loss",
+  "strategyId": "esmb-k5",
+  "note": "B3=(-30,-30) completes a 5-hole as a vertex the moment it lands (monochromatic rule): Maker wins with 6 points at the operating node, before routing. Renamed from safe-centroid on first run — the engine verdict, frozen.",
+  "moves": { "b1": [5, 7], "b2": [11, 9], "b3": [-30, -30] },
+  "expect": {
+    "terminal": "maker-won",
+    "points": 6,
+    "nodeId": "k5:r3:classify",
+    "cases": ["k5:any", "k5:b2:one-interior", null]
+  }
+}

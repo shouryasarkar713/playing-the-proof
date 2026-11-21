@@ -1,0 +1,50 @@
+// explain/help.ts — the in-app Help content (Phase 19): rules, modes,
+// legend, keyboard map. Pure data; rendered by ui/help.ts. The keyboard
+// table mirrors the actual key handlers (proof/break/timeline); sandbox
+// has no shortcuts. Every body string is ClaimLint-clean.
+export interface HelpSection {
+  heading: string;
+  body: readonly string[];
+}
+
+export const HELP_TITLE = "Help";
+
+export const HELP_SECTIONS: readonly HelpSection[] = [
+  {
+    heading: "Rules",
+    body: [
+      "Maker and Breaker alternate placing points; Maker moves first. Every new point must keep the set in general position: no two points may coincide and no three may be collinear. Rejected placements name their reason.",
+      "The default game is monochromatic: an empty convex k-gon (a k-hole) formed by points of either color wins for Maker. Breaker resists: every reply is classified, and replies outside the encoded domain end honestly uncovered. Play stays inside the configured play window.",
+      "The Sandbox can switch to the bichromatic rule: a winning k-hole then uses Maker points only, and Breaker points act as blockers that may sit inside it but are never its vertices. The rule caption names the rule in force.",
+      "Coordinates are exact rationals; the board shows decimal roundings. Hovering shows the exact value.",
+    ],
+  },
+  {
+    heading: "Modes",
+    body: [
+      "Proof: step through the encoded Maker strategy. Sample chips play the strategy's reply for each case; autoplay advances on a timer; the timeline rewinds, branches, and forks replays.",
+      "Break the Proof: you play Breaker freely against the encoded Maker strategy. Hover previews the threatened case; every attack is classified, logged, and absorbed on record.",
+      "Sandbox: free placement in either color, k selector, seeded random sets, typed coordinates, hole browsing, count-all-k, the Overmars-29 preset, and passive strategy overlays.",
+      "Parameter Lab: choose a game model, k, bias and rule. The status badge (THEOREM-BACKED, EXPERIMENTAL or NOT COVERED) is the classifier's verdict, shown with its citations, limitations and nearest backed neighbours. Simulations run for EXPERIMENTAL configurations only and are labelled as observations of one sampled play. The discrepancy list D1 to D12 is reachable from the lab.",
+      "k-strip explorer: pick a verified configuration, read the cost estimate, run the exact recursive construction, then step through its move log with the counting ledger, extension cones, candidate pairs, recursion table and the reason for every Breaker move. Break the Proof lets you place Breaker points in the top pairing phase. Parameters outside the verified table are shown as estimates only and never executed.",
+      "Replays: export the session, fork the cursor prefix, resume from autosaves, or load a replay file. Corrupt files are rejected with structured reports. Explorer and Lab experiments export their parameters, seed and log, and are re-executed and compared on import.",
+    ],
+  },
+  {
+    heading: "Legend",
+    body: [
+      "Maker points render as red discs; Breaker points as blue diamonds. The convex hull outlines the set; highlighted polygons mark k-holes under discussion.",
+      "The forced region is Breaker's survivable zone: outside it, Maker wins at once. The case map tints the board by the classification each reply would receive.",
+      "Growth strips (labeled project abstraction) mark the corridor along which a hole is grown or guarded. The threat preview names the case your hovered point would trigger.",
+    ],
+  },
+  {
+    heading: "Keyboard",
+    body: [
+      "Proof mode: Space toggles autoplay; Left/Right step the timeline; R restarts; 1–4 cycle overlays; C toggles the case map; B notes the branch point; M or Escape returns to the menu.",
+      "Break mode: Left/Right step the timeline; R restarts; 1–4 cycle overlays; C toggles the case map; B notes the branch point; M or Escape returns to the menu.",
+      "Sandbox: no shortcuts — mouse placement plus typed coordinates. Typing in an input field suspends all shortcuts.",
+      "k-strip explorer: Left/Right step the move log; Space toggles play; R restarts; M or Escape returns to the menu. Every control is also a button or field. Parameter Lab: M or Escape returns to the menu.",
+    ],
+  },
+];

@@ -1,0 +1,148 @@
+{
+  "points": [
+    [
+      1,
+      1260
+    ],
+    [
+      16,
+      743
+    ],
+    [
+      22,
+      531
+    ],
+    [
+      37,
+      0
+    ],
+    [
+      306,
+      592
+    ],
+    [
+      310,
+      531
+    ],
+    [
+      366,
+      552
+    ],
+    [
+      371,
+      487
+    ],
+    [
+      374,
+      525
+    ],
+    [
+      392,
+      575
+    ],
+    [
+      396,
+      613
+    ],
+    [
+      410,
+      539
+    ],
+    [
+      416,
+      550
+    ],
+    [
+      426,
+      526
+    ],
+    [
+      434,
+      552
+    ],
+    [
+      436,
+      535
+    ],
+    [
+      446,
+      565
+    ],
+    [
+      449,
+      518
+    ],
+    [
+      450,
+      498
+    ],
+    [
+      453,
+      542
+    ],
+    [
+      458,
+      526
+    ],
+    [
+      489,
+      537
+    ],
+    [
+      492,
+      502
+    ],
+    [
+      496,
+      579
+    ],
+    [
+      516,
+      467
+    ],
+    [
+      552,
+      502
+    ],
+    [
+      754,
+      697
+    ],
+    [
+      777,
+      194
+    ],
+    [
+      1259,
+      320
+    ]
+  ],
+  "n": 29,
+  "source": "Heule-Scheucher arXiv:2403.00737v1, Fig. 8, p. 16",
+  "checks": {
+    "V2_x_strictly_increasing": true,
+    "V1_general_position": true,
+    "V1_collinear_triples": [],
+    "V4_hull_layers": [
+      3,
+      4,
+      7,
+      7,
+      7,
+      1
+    ],
+    "V4_layers_match_3_4_7_7_7_1": true,
+    "V3_num_empty_convex_hexagons": 0,
+    "V3_no_6hole_witness": true,
+    "V3_sample_6holes": [],
+    "V3_convex_6_subsets_total": 5335,
+    "V7_empty_convex_pentagons": 151,
+    "V7_at_least_one_5hole": true,
+    "V5_convex_7gons": 494,
+    "V5_at_least_three_7gons": true,
+    "V6_convex_8gons": 0,
+    "V6_no_8gon": true
+  },
+  "elapsed_seconds": 52.5,
+  "all_passed": true
+}

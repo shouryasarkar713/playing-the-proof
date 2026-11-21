@@ -1,0 +1,57 @@
+// explain/about.ts — the About page content (Phase 17): citations,
+// figure/data credits, the honesty statement, the validation-scope note,
+// and the k-strip disambiguation. Pure data; rendered by ui/about.ts.
+// Every body string is ClaimLint-clean (asserted in tests/explain/).
+export interface AboutSection {
+  heading: string;
+  body: readonly string[];
+}
+
+export const ABOUT_TITLE = "About Playing the Proof";
+
+export const ABOUT_SECTIONS: readonly AboutSection[] = [
+  {
+    heading: "What this is",
+    body: [
+      "Playing the Proof is an interactive laboratory for Erdős–Szekeres Maker–Breaker strategies. Maker and Breaker alternate placing points in general position; Maker aims to be the first to hold an empty convex k-gon (a k-hole), Breaker aims to block.",
+      "The default game is the monochromatic variant: points of either color may form the k-gon. The bichromatic variant, where a winning k-gon uses Maker points only and Breaker points block, is available in the Sandbox, the Parameter Lab and the k-strip explorer. All predicates are evaluated with exact rational arithmetic; the board shows decimal roundings of exact values.",
+    ],
+  },
+  {
+    heading: "Sources",
+    body: [
+      "Encoded strategies transcribe Lemma 6 (k = 5) and Lemma 7 (k = 6) of Arun Kumar Das and Tomáš Valla, “On Erdős–Szekeres Maker–Breaker games”, Computing in Geometry and Topology 5(2), Article 3, 2026, DOI 10.57717/cgt.v5i2.73 (CC-BY 4.0).",
+      "Terminology (monochromatic vs bichromatic) follows A. Džuklevski, D. Pálvölgyi, A. Pokrovskiy, C. D. Tóth, T. Valla and T. Verlinde, “Erdős–Szekeres Maker–Breaker Games”, arXiv:2505.15366v2 (2026). That paper settles the max-k question for the monochromatic game; the exact Breaker-winning bias threshold remains open.",
+      "Game taxonomy follows O. Aichholzer et al., “Erdős–Szekeres-Type Games”, EuroCG 2019.",
+      "The Overmars-29 preset transcribes the integer coordinates printed in Fig. 8 of M. J. H. Heule and M. Scheucher, “Happy ending: an empty hexagon in every set of 30 points”, TACAS 2024 (preprint arXiv:2403.00737v1). The h(6) = 30 result is additionally formalized in Lean (B. Subercaseaux et al., ITP 2024, arXiv:2403.17370v1).",
+      "Background: P. Erdős and G. Szekeres (1935); P. Erdős (1978); H. Harborth (1978, H(5) = 10); J. D. Horton (1983); P. Kolipaka and S. Govindarajan (2013); D. Hefetz et al., Positional Games (Springer, 2014); T. Valla (2006, Master's thesis).",
+    ],
+  },
+  {
+    heading: "Figure and data credits",
+    body: [
+      "All board art is computed live from exact coordinates; no paper figure is reproduced. The Overmars-29 point set is transcribed from the figure cited above. Das–Valla figures are CC-BY 4.0.",
+    ],
+  },
+  {
+    heading: "Honesty and validation scope",
+    body: [
+      "Playing with this application demonstrates the encoded constructions and checks their geometric facts exactly, move by move; it does not re-prove the theorem. The proofs are those of the cited authors.",
+      "Exact offline checks run over stated finite domains: the configured play window and the recorded corpora. Both core strategies ship as validated-randomized; the badge shows verified-conventions only after the applicable exact checks pass and are recorded.",
+      "The escape-beyond-edge convention is runtime-checked per move and representative-confirmed over the checked corpus; its universality over the forced region is not established here and rests on the cited source.",
+    ],
+  },
+  {
+    heading: "Research modes",
+    body: [
+      "The Parameter Lab reports, for a chosen game configuration, which published statement covers it (THEOREM-BACKED), whether only a bounded simulation exists (EXPERIMENTAL), or neither (NOT COVERED). The status is the lab's classification with its citations and the strength of each; a simulation there is one sampled play and says nothing about any theorem. The lab also lists the discrepancies found between the project proposal and the papers.",
+      "The k-strip explorer executes the recursive k-strip construction of Džuklevski et al. (Theorems 3, 4 and 5) with exact arithmetic for a short table of verified configurations, against heuristic Breaker policies, and re-checks the claimed strips on the final board. The theorems are the authors' results; larger k or other parameters are shown as cost estimates and are not executed, and a successful run is evidence about that run only.",
+    ],
+  },
+  {
+    heading: "Growth strips",
+    body: [
+      "Growth strips are this project's own visualization abstraction for the corridor along which a hole is grown or guarded; they are unrelated to the formal “k-strip” of Džuklevski et al. (Definition 2).",
+    ],
+  },
+];

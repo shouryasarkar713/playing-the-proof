@@ -1,0 +1,11 @@
+{
+  "id": "r1-boundary-uncovered",
+  "note": "Phase-12 boundary quad: window corners exactly on the played rectangle; the blunder-branch extension has no room inside the window on any hole edge — honest maker-construction/window-exhausted, never a guess.",
+  "strategy": "esmb-k5",
+  "window": { "xMin": "0/1", "yMin": "0/1", "xMax": "20/1", "yMax": "28/1" },
+  "moves": [
+    { "owner": "breaker", "at": ["0/1", "28/1"] },
+    { "owner": "breaker", "at": ["20/1", "0/1"] }
+  ],
+  "expect": { "terminal": "uncovered", "origin": "maker-construction", "reason": "window-exhausted" }
+}
