@@ -14,7 +14,7 @@
 // source statement covers exactly that bias (see DISCREPANCIES D2-D5).
 import { Rat } from "../geometry/rat.ts";
 import { isIntegerRat, formatBias } from "./bias.ts";
-import { ENCODING_REGISTRY, encodingApplies, encodingEntry, isVerified } from "./encodings.ts";
+import { ENCODING_REGISTRY, encodingApplies, encodingEntry, inVerifiedScope, isVerified } from "./encodings.ts";
 import type { EncodingEntry } from "./encodings.ts";
 import { SIM_K_MAX, SIM_K_MIN, SIM_MAX_BIAS_INT } from "./limits.ts";
 import { sourceRow } from "./regimes.ts";
@@ -228,21 +228,29 @@ function encodingInfo(
     };
   }
   const applies = encodingApplies(e, cfg);
-  const replayOffered = applies && isVerified(e.availability);
+  // An entry verified for listed configurations only is verified here only if
+  // this exact configuration is listed; elsewhere it exists but is unverified.
+  const scoped = applies && !inVerifiedScope(e, cfg);
+  const availability = scoped && isVerified(e.availability) ? "exists-unverified" : e.availability;
+  const replayOffered = applies && !scoped && isVerified(e.availability) && (e.replay ?? "proof") === "proof";
   let note: string;
   if (!applies) {
     note = `'${e.id}' is a construction for a different game (${e.rule}, online, ${e.k === "any" ? "any k" : `k = ${e.k}`}); it is ignored for this configuration`;
+  } else if (scoped && isVerified(e.availability)) {
+    note = `'${e.id}' matches this game but is verified only for its listed configurations and this one is not among them: the strategy is not extrapolated to it; no replay is offered`;
   } else if (e.availability === "none") {
     note = `'${e.id}' matches this game but no implementation exists yet; no replay is offered`;
   } else if (e.availability === "exists-unverified") {
     note = `'${e.id}' exists but is unverified: the theorem backs the regime, not this variant; no proof replay is offered`;
+  } else if ((e.replay ?? "proof") === "explorer") {
+    note = `'${e.id}' is ${e.availability} for this exact configuration: an exact run is available in the k-strip explorer; it is not an interactive replay of this game`;
   } else {
     note = `'${e.id}' is ${e.availability}`;
   }
   return {
     requested: cfg.encodingId,
     applies,
-    availability: applies ? e.availability : "none",
+    availability: applies ? availability : "none",
     replayOffered,
     note,
   };

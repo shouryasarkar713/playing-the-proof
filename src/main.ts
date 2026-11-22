@@ -29,6 +29,13 @@ import {
   twinPair6Checker,
   twins6Checker,
 } from "./verification/k7twins.ts";
+import { esmbK8 } from "./strategy/strategies/k8/def.ts";
+import {
+  classifyB0Hept,
+  classifyB3Obs2,
+  classifyB4Sevens,
+} from "./strategy/strategies/k8/classify.ts";
+import { K8_CHECKERS } from "./verification/k8checks.ts";
 
 const board = document.querySelector<SVGSVGElement>("#board");
 const panels = document.querySelector<HTMLElement>("#panels");
@@ -68,6 +75,16 @@ for (const checker of [pair5Checker, twins6Checker, twinPair6Checker]) {
     registerChecker(checker);
   }
 }
+for (const c of [classifyB0Hept, classifyB3Obs2, classifyB4Sevens]) {
+  if (getClassifier(c.id) === undefined) {
+    registerClassifier(c);
+  }
+}
+for (const checker of K8_CHECKERS) {
+  if (getChecker(checker.id) === undefined) {
+    registerChecker(checker);
+  }
+}
 if (!strategies().has(esmbK5.id)) {
   registerStrategy(esmbK5, "core");
 }
@@ -79,6 +96,9 @@ if (!strategies().has(esmbK6Wide.id)) {
 }
 if (!strategies().has(esmbK7.id)) {
   registerStrategy(esmbK7, "core");
+}
+if (!strategies().has(esmbK8.id)) {
+  registerStrategy(esmbK8, "core");
 }
 
 const shell = createShell(board, panels, {

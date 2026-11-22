@@ -10,3 +10,4 @@ export * from "./policies.ts";
 export * from "./runner.ts";
 export * from "./replay.ts";
 export * from "./trace.ts";
+export * as spec from "./spec/index.ts";

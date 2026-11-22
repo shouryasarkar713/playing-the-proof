@@ -20,6 +20,7 @@ import { evalPtListIds, evalRegion } from "./eval.ts";
 import type { EvalCtx } from "./eval.ts";
 import type {
   RegionPredicate,
+  RouteInteraction,
   RouteRule,
   StrategyDef,
   StrategyNode,
@@ -51,6 +52,7 @@ export type ClassifyOut =
       case: string;
       target: NodeId;
       bindings: Readonly<Record<string, Binding>>;
+      interaction?: RouteInteraction;
     }
   | { ok: false; report: IntegrityReport };
 
@@ -113,6 +115,7 @@ function matchRule(
       case: rule.case,
       target: rule.target,
       bindings: ruleBindings(rule, undefined, pointId) ?? {},
+      ...(rule.interaction !== undefined ? { interaction: rule.interaction } : {}),
     };
   }
   if (when.kind === "region") {
@@ -135,6 +138,7 @@ function matchRule(
       case: rule.case,
       target: rule.target,
       bindings: ruleBindings(rule, undefined, pointId) ?? {},
+      ...(rule.interaction !== undefined ? { interaction: rule.interaction } : {}),
     };
   }
   // Classifier rule.
@@ -198,7 +202,13 @@ function matchRule(
       "binding references missing classifier field",
     );
   }
-  return { ok: true, case: rule.case, target: rule.target, bindings };
+  return {
+    ok: true,
+    case: rule.case,
+    target: rule.target,
+    bindings,
+    ...(rule.interaction !== undefined ? { interaction: rule.interaction } : {}),
+  };
 }
 
 function lookupPoint(state: GameState, id: PointId): Pt | null {

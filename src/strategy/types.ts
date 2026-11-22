@@ -77,7 +77,28 @@ export type MoveSpec =
       ring: PolyRef;
       anchor: VarName;
       halves: readonly [PolyRef, PolyRef];
-    };
+    }
+  // escape-edge-accept (Lemma 9 A1/A2): the new point just outside a CCW edge
+  // [u, v] of `ring`, accepted only when every listed id-list extended by the
+  // new point is an exact hole (|list|+1 vertices) and, with `meet`, the first
+  // two such holes meet exactly in a convex `meet`-gon. Options are tried in
+  // order (first success wins).
+  | { kind: "escape-edge-accept"; options: readonly EscapeEdgeOption[] }
+  // forcing-pair (Lemma 9 A3): a point just outside an edge of the 7-hole
+  // `ring`, accepted when two 6-holes through it meet exactly in a triangle and
+  // neither has all three `chain` vertices consecutive.
+  | { kind: "forcing-pair"; ring: PolyRef; chain: readonly [VarName, VarName, VarName] }
+  // double-extend (Lemma 9 A4): near the unique common vertex of two
+  // interior-disjoint `holeSize`-holes, accepted when the point extends BOTH to
+  // exact (holeSize+1)-holes with disjoint interiors.
+  | { kind: "double-extend"; holeSize: number };
+
+export interface EscapeEdgeOption {
+  edge: EdgeRef;
+  ring: PolyRef;
+  grow: readonly PolyRef[];
+  meet?: number;
+}
 
 export type ComputedOp =
   | {
@@ -120,6 +141,71 @@ export type ComputedOp =
       holeSize: number;
       anchorVars: readonly [VarName, VarName];
       binds: { twinA: VarName; twinB: VarName; quad: VarName };
+    }
+  // Lemma 9 step 1: the rotation of the 7-hole `holeVar` whose chord halves
+  // survive B0 as two 5-holes meeting only in a segment. Binds v0..v6 (rotated
+  // ring ids), ring, the A1 edge [v3, v4], pentA = v0..v3+B0, pentB = v3..v6+B0.
+  | {
+      kind: "select-heptagon-pair";
+      holeVar: VarName;
+      anchorVar: VarName;
+      binds: {
+        v0: VarName;
+        v1: VarName;
+        v2: VarName;
+        v3: VarName;
+        v4: VarName;
+        v5: VarName;
+        v6: VarName;
+        ring: VarName;
+        edge: VarName;
+        pentA: VarName;
+        pentB: VarName;
+      };
+    }
+  // Lemma 9 step 3: enumerate the 6-holes after A1 and bind the canonical
+  // exact triangle-twins for the anchors (A1, B0).
+  | {
+      kind: "select-twin-triangle";
+      anchorVars: readonly [VarName, VarName];
+      binds: { twinA: VarName; twinB: VarName; tri: VarName };
+    }
+  // Lemma 9 step 4 (Observation 1): after B1 inside the shared triangle, bind
+  // the two replacement 6-holes and, per orientation, the ring/edge of the one
+  // that is extended across the shared edge and the two grow-bases of the
+  // other one (its replacement holes after A2).
+  | {
+      kind: "select-ear-replacement";
+      twinA: VarName;
+      twinB: VarName;
+      tri: VarName;
+      b1Var: VarName;
+      binds: {
+        ring1: VarName;
+        edge1: VarName;
+        k1a: VarName;
+        k1b: VarName;
+        ring2: VarName;
+        edge2: VarName;
+        k2a: VarName;
+        k2b: VarName;
+      };
+    }
+  // Lemma 9: bind the canonical (first enumerated) `holeSize`-hole through the
+  // anchor (CCW id list) — e.g. the 7-hole X created by A2.
+  | {
+      kind: "select-hole-through";
+      holeSize: number;
+      anchorVar: VarName;
+      binds: { hole: VarName };
+    }
+  // Lemma 9 step 7 (after A4): enumerate the `holeSize`-holes through the
+  // anchor and bind the canonical pair with disjoint interiors.
+  | {
+      kind: "select-disjoint-holes";
+      holeSize: number;
+      anchorVar: VarName;
+      binds: { holeA: VarName; holeB: VarName };
     };
 
 export type PtExpr =
@@ -134,12 +220,21 @@ export type PtListExpr =
   | { kind: "var"; v: VarName }
   | { kind: "last-n"; n: number };
 
+// RouteInteraction (k=8 guided tours): how far the response class of a route
+// is verified. interactive = the class is verified exactly (free play and
+// replay are offered); guided = the continuation is verified along the
+// stated path / per-move exact checks only; unverified = the class is NOT
+// encoded: reaching it ends the session as an honest `uncovered`
+// (partial-encoding) terminal and the route's target is never run.
+export type RouteInteraction = "interactive" | "guided" | "unverified";
+
 export interface RouteRule {
   case: CaseId;
   when: RegionPredicate;
   target: NodeId;
   bind?: Readonly<Record<VarName, BindingExpr>>;
   note?: string;
+  interaction?: RouteInteraction;
 }
 
 export type RegionPredicate =
@@ -327,7 +422,10 @@ export type MoveSpecJSON =
       ring: PolyRef;
       anchor: VarName;
       halves: readonly [PolyRef, PolyRef];
-    };
+    }
+  | { kind: "escape-edge-accept"; options: readonly EscapeEdgeOption[] }
+  | { kind: "forcing-pair"; ring: PolyRef; chain: readonly [VarName, VarName, VarName] }
+  | { kind: "double-extend"; holeSize: number };
 
 export type InvariantSpecJSON =
   | { kind: "exists-k-hole"; k: number; where?: RegionExprJSON }
@@ -347,6 +445,7 @@ export interface RouteRuleJSON {
   target: NodeId;
   bind?: Readonly<Record<VarName, BindingExpr>>;
   note?: string;
+  interaction?: RouteInteraction;
 }
 
 export type OverlaySpecJSON =

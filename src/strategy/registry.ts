@@ -361,7 +361,13 @@ function validateGraph(def: StrategyDef): void {
         if (target === undefined) {
           fail("G3", `${id}: dangling route target ${rule.target}`);
         }
-        if (target.role !== "maker-move" && target.role !== "computed-step") {
+        // An `unverified` route never runs its target (the session ends as an
+        // honest uncovered terminal), so any existing node may be named.
+        if (
+          rule.interaction !== "unverified" &&
+          target.role !== "maker-move" &&
+          target.role !== "computed-step"
+        ) {
           fail("G3", `${id}: route target ${rule.target} must be maker-move/computed-step`);
         }
         if (rule.when.kind === "classifier") {
@@ -560,6 +566,23 @@ function validateVars(def: StrategyDef): void {
         for (const v of op.anchorVars) {
           pre.add(v);
         }
+      } else if (op.kind === "select-heptagon-pair") {
+        pre.add(op.holeVar);
+        pre.add(op.anchorVar);
+      } else if (op.kind === "select-twin-triangle") {
+        for (const v of op.anchorVars) {
+          pre.add(v);
+        }
+      } else if (op.kind === "select-ear-replacement") {
+        pre.add(op.twinA);
+        pre.add(op.twinB);
+        pre.add(op.tri);
+        pre.add(op.b1Var);
+      } else if (
+        op.kind === "select-disjoint-holes" ||
+        op.kind === "select-hole-through"
+      ) {
+        pre.add(op.anchorVar);
       } else {
         pre.add(op.anchorVar);
       }
@@ -703,6 +726,23 @@ function collectMoveReads(move: MoveSpec, into: Set<VarName>): void {
           into.add(q.v);
         }
       }
+      return;
+    case "escape-edge-accept":
+      for (const o of move.options) {
+        into.add(o.edge.v);
+        into.add(o.ring.v);
+        for (const g of o.grow) {
+          into.add(g.v);
+        }
+      }
+      return;
+    case "forcing-pair":
+      into.add(move.ring.v);
+      for (const v of move.chain) {
+        into.add(v);
+      }
+      return;
+    case "double-extend":
       return;
     case "escape-pair-beyond-edge":
       into.add(move.edge.v);
@@ -1040,6 +1080,12 @@ function serMove(move: MoveSpec): MoveSpecJSON {
         anchor: move.anchor,
         halves: move.halves,
       };
+    case "escape-edge-accept":
+      return { kind: "escape-edge-accept", options: move.options };
+    case "forcing-pair":
+      return { kind: "forcing-pair", ring: move.ring, chain: move.chain };
+    case "double-extend":
+      return { kind: "double-extend", holeSize: move.holeSize };
   }
 }
 
@@ -1068,6 +1114,12 @@ function deMove(json: MoveSpecJSON): MoveSpec {
         anchor: json.anchor,
         halves: json.halves,
       };
+    case "escape-edge-accept":
+      return { kind: "escape-edge-accept", options: json.options };
+    case "forcing-pair":
+      return { kind: "forcing-pair", ring: json.ring, chain: json.chain };
+    case "double-extend":
+      return { kind: "double-extend", holeSize: json.holeSize };
   }
 }
 
@@ -1246,17 +1298,14 @@ function serNode(node: StrategyNode): StrategyNodeJSON {
     out.compute = node.compute;
   }
   if (node.routes !== undefined) {
-    out.routes = node.routes.map((r) =>
-      r.bind === undefined && r.note === undefined
-        ? { case: r.case, when: serPredicate(r.when), target: r.target }
-        : {
-            case: r.case,
-            when: serPredicate(r.when),
-            target: r.target,
-            ...(r.bind !== undefined ? { bind: r.bind } : {}),
-            ...(r.note !== undefined ? { note: r.note } : {}),
-          },
-    );
+    out.routes = node.routes.map((r) => ({
+      case: r.case,
+      when: serPredicate(r.when),
+      target: r.target,
+      ...(r.bind !== undefined ? { bind: r.bind } : {}),
+      ...(r.note !== undefined ? { note: r.note } : {}),
+      ...(r.interaction !== undefined ? { interaction: r.interaction } : {}),
+    }));
   }
   if (node.pre !== undefined) {
     out.pre = node.pre.map(serInvariant);
@@ -1294,6 +1343,7 @@ function deNode(json: StrategyNodeJSON): StrategyNode {
       target: r.target,
       ...(r.bind !== undefined ? { bind: r.bind } : {}),
       ...(r.note !== undefined ? { note: r.note } : {}),
+      ...(r.interaction !== undefined ? { interaction: r.interaction } : {}),
     }));
   }
   if (json.pre !== undefined) {

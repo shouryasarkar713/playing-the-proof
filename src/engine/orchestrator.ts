@@ -31,6 +31,14 @@ import { findKHoles, witnessOf } from "../geometry/holes.ts";
 import { sharedEdgePairs } from "../geometry/holes.ts";
 import { twinSharedTriangle } from "../geometry/twins.ts";
 import { chordHalfPair, twinQuadEars } from "../geometry/twinsK7.ts";
+import {
+  earReplacement,
+  heptagonPair,
+  interiorsDisjoint,
+  rotateToEdge,
+  twinTriangleEars,
+} from "../geometry/twinsK8.ts";
+import type { HoleAnalysis } from "../geometry/holes.ts";
 import type { IdPt } from "../geometry/holes.ts";
 import { buildIntent } from "./actions.ts";
 import { detectWinAfterPlacement } from "./pipeline.ts";
@@ -496,6 +504,191 @@ export function runComputedOp(
       },
     };
   }
+  const vars = state.strategy?.vars ?? {};
+  const ptOfS = (pid: string): Pt | null =>
+    state.points.find((p) => p.id === pid)?.pt ?? null;
+  const fail = (id: string, detail: string, analysis?: HoleAnalysis) => ({
+    ok: false as const,
+    failed: {
+      id,
+      kind: "strategy" as const,
+      passed: false,
+      detail,
+      ...(analysis !== undefined ? { analysis } : {}),
+    },
+  });
+  if (op.kind === "select-heptagon-pair") {
+    const id = "select-heptagon-pair";
+    const hole = vars[op.holeVar];
+    const b0 = vars[op.anchorVar];
+    if (!Array.isArray(hole) || hole.length !== 7 || typeof b0 !== "string") {
+      return fail(id, `hole var ${op.holeVar} (7 ids) or anchor ${op.anchorVar} misbound`);
+    }
+    const sel = heptagonPair(
+      hole as readonly string[],
+      b0,
+      ptOfS,
+      state.points.map((p) => p.pt),
+    );
+    if (sel === null) {
+      return fail(
+        id,
+        "no two chord halves of the 7-hole survive B0 as 5-holes meeting only in a segment",
+      );
+    }
+    const r = sel.ring;
+    return {
+      ok: true,
+      bindings: {
+        [op.binds.v0]: r[0] as string,
+        [op.binds.v1]: r[1] as string,
+        [op.binds.v2]: r[2] as string,
+        [op.binds.v3]: r[3] as string,
+        [op.binds.v4]: r[4] as string,
+        [op.binds.v5]: r[5] as string,
+        [op.binds.v6]: r[6] as string,
+        [op.binds.ring]: [...r],
+        [op.binds.edge]: [r[3] as string, r[4] as string],
+        [op.binds.pentA]: [...r.slice(0, 4), b0],
+        [op.binds.pentB]: [...r.slice(3, 7), b0],
+      },
+    };
+  }
+  if (op.kind === "select-twin-triangle") {
+    const id = "select-twin-triangle";
+    const x = vars[op.anchorVars[0]];
+    const y = vars[op.anchorVars[1]];
+    if (typeof x !== "string" || typeof y !== "string") {
+      return fail(id, `anchor vars ${op.anchorVars.join(",")} are not single PointIds`);
+    }
+    const found6 = findKHoles(idPtsOf(state), 6, {
+      mode: "exhaustive",
+      budget: config.analysis.budgetOps,
+    });
+    if (found6.kind !== "exhaustive") {
+      return fail(id, "twin enumeration budget-exhausted", found6);
+    }
+    for (let i = 0; i < found6.holes.length; i += 1) {
+      for (let j = i + 1; j < found6.holes.length; j += 1) {
+        const a = found6.holes[i]?.verts ?? [];
+        const b = found6.holes[j]?.verts ?? [];
+        const t = twinTriangleEars(a, b, [x, y], ptOfS);
+        if (t !== null) {
+          return {
+            ok: true,
+            bindings: {
+              [op.binds.twinA]: [...a],
+              [op.binds.twinB]: [...b],
+              [op.binds.tri]: [...t.triIds],
+            },
+          };
+        }
+      }
+    }
+    return fail(id, "no two 6-holes meet exactly in a triangle with A1/B0 among its vertices");
+  }
+  if (op.kind === "select-ear-replacement") {
+    const id = "select-ear-replacement";
+    const a = vars[op.twinA];
+    const b = vars[op.twinB];
+    const tri = vars[op.tri];
+    const b1 = vars[op.b1Var];
+    if (!Array.isArray(a) || !Array.isArray(b) || !Array.isArray(tri) || typeof b1 !== "string") {
+      return fail(id, "twin/triangle/B1 vars misbound");
+    }
+    const t = twinTriangleEars(a as string[], b as string[], [tri[0] as string, tri[1] as string], ptOfS);
+    if (t === null) {
+      return fail(id, "twins are not exact triangle-twins");
+    }
+    const rep = earReplacement(a as string[], b as string[], t, b1, ptOfS);
+    if (rep === null) {
+      return fail(id, "no ear replacement");
+    }
+    const sharedEdge = (hole: readonly string[]): [string, string] | null => {
+      for (let i = 0; i < hole.length; i += 1) {
+        const u = hole[i] as string;
+        const v = hole[(i + 1) % hole.length] as string;
+        if ((u === b1 && v === rep.thirdVertex) || (u === rep.thirdVertex && v === b1)) {
+          return [u, v];
+        }
+      }
+      return null;
+    };
+    const e1 = sharedEdge(rep.holeA);
+    const e2 = sharedEdge(rep.holeB);
+    if (e1 === null || e2 === null) {
+      return fail(id, "replacement holes do not share the edge B1–third vertex");
+    }
+    const r1 = rotateToEdge(rep.holeA, e1[0], e1[1]);
+    const r2 = rotateToEdge(rep.holeB, e2[0], e2[1]);
+    if (r1 === null || r2 === null) {
+      return fail(id, "shared edge not CCW-consecutive");
+    }
+    const without = (hole: readonly string[], v: string): string[] =>
+      hole.filter((q) => q !== v);
+    return {
+      ok: true,
+      bindings: {
+        [op.binds.ring1]: r1,
+        [op.binds.edge1]: [e1[0], e1[1]],
+        [op.binds.k1a]: without(rep.holeB, e1[0]),
+        [op.binds.k1b]: without(rep.holeB, e1[1]),
+        [op.binds.ring2]: r2,
+        [op.binds.edge2]: [e2[0], e2[1]],
+        [op.binds.k2a]: without(rep.holeA, e2[0]),
+        [op.binds.k2b]: without(rep.holeA, e2[1]),
+      },
+    };
+  }
+  if (op.kind === "select-hole-through") {
+    const id = "select-hole-through";
+    const anchorId = vars[op.anchorVar];
+    if (typeof anchorId !== "string") {
+      return fail(id, `anchor var ${op.anchorVar} is not a single PointId`);
+    }
+    const found = findKHoles(idPtsOf(state), op.holeSize, {
+      mode: "exhaustive",
+      budget: config.analysis.budgetOps,
+    });
+    if (found.kind !== "exhaustive") {
+      return fail(id, "enumeration budget-exhausted", found);
+    }
+    const first = found.holes.find((h) => h.verts.includes(anchorId));
+    if (first === undefined) {
+      return fail(id, `no ${op.holeSize}-hole through ${anchorId}`);
+    }
+    return { ok: true, bindings: { [op.binds.hole]: [...first.verts] } };
+  }
+  if (op.kind === "select-disjoint-holes") {
+    const id = "select-disjoint-holes";
+    const anchorId = vars[op.anchorVar];
+    if (typeof anchorId !== "string") {
+      return fail(id, `anchor var ${op.anchorVar} is not a single PointId`);
+    }
+    const found = findKHoles(idPtsOf(state), op.holeSize, {
+      mode: "exhaustive",
+      budget: config.analysis.budgetOps,
+    });
+    if (found.kind !== "exhaustive") {
+      return fail(id, "enumeration budget-exhausted", found);
+    }
+    const through = found.holes.filter((h) => h.verts.includes(anchorId));
+    for (let i = 0; i < through.length; i += 1) {
+      for (let j = i + 1; j < through.length; j += 1) {
+        const a = through[i]?.verts ?? [];
+        const b = through[j]?.verts ?? [];
+        const pa = a.map((q) => ptOfS(q) as Pt);
+        const pb = b.map((q) => ptOfS(q) as Pt);
+        if (interiorsDisjoint(pa, pb)) {
+          return {
+            ok: true,
+            bindings: { [op.binds.holeA]: [...a], [op.binds.holeB]: [...b] },
+          };
+        }
+      }
+    }
+    return fail(id, `no two ${op.holeSize}-holes through ${anchorId} with disjoint interiors`);
+  }
   // select-twin-pair: enumerate 5-holes; canonical pair sharing exactly 3
   // vertices including the anchor (enumeration-position order).
   const anchor = state.strategy?.vars[op.anchorVar];
@@ -587,7 +780,10 @@ export function classifySpecFailure(
   if (
     kind === "extend" ||
     kind === "escape-beyond-edge" ||
-    kind === "escape-pair-beyond-edge"
+    kind === "escape-pair-beyond-edge" ||
+    kind === "escape-edge-accept" ||
+    kind === "forcing-pair" ||
+    kind === "double-extend"
   ) {
     return {
       kind: "uncovered",
@@ -681,6 +877,24 @@ export function reduceTransaction(
       );
     }
     const cn = nodeOf(def, mustRt(s).nodeId);
+    if (r.interaction === "unverified") {
+      // The matched response class is declared NOT encoded: end honestly as
+      // an uncovered (partial-encoding) terminal; the route target never runs.
+      const terminal = uncovered(s, {
+        origin: "breaker-reply",
+        reason: "partial-encoding",
+        at: { nodeId: cn.id, breakerPoint: placedId(s) },
+        detail: `response class ${r.case} is not encoded or verified in this build`,
+      });
+      const sF = withTerminal(s, terminal);
+      fin(0, { caseId: r.case, nodeAfter: null, state: sF });
+      return finish(
+        sF,
+        pending as RawEvent[],
+        { kind: "terminal", terminal },
+        notes,
+      );
+    }
     // v1.2.9 TRANSIENT: route bindings applied, nodeId STILL the classify
     // node — control does not leave until its post passes.
     s = withStrategy(s, (rt) => ({

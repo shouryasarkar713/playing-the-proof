@@ -139,7 +139,7 @@
   --bg-hover: #f4eedf;
   --ink-1: #241e15;
   --ink-2: #5a5140;
-  --ink-3: #6f664f; /* a11y: ≥4.5:1 on paper/inset (was #877d67, 3.3–3.8:1) */
+  --ink-3: #675e48; /* a11y: ≥4.5:1 on paper/inset and chips */
   --line-1: #e4dac4; /* inner rules */
   --line-2: #cbbfa3; /* chrome hairline */
   --accent: var(--breaker);
@@ -797,8 +797,8 @@ button:disabled {
   font-weight: 600;
 }
 #entry .strategy-row button {
-  background: var(--maker); /* starting a proof = the Maker's move */
-  border-color: var(--maker);
+  background: color-mix(in srgb, var(--maker) 88%, #000); /* starting a proof = the Maker's move */
+  border-color: color-mix(in srgb, var(--maker) 88%, #000);
   color: #fbf7ee;
 }
 #entry .strategy-row button:hover,

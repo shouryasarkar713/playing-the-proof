@@ -8,10 +8,12 @@ import { clipConvexByHalfPlane, canonicalizeRegion } from "../geometry/poly.ts";
 import type { RegionValue } from "../geometry/poly.ts";
 import { hull } from "../geometry/hull.ts";
 import { twinSharedTriangle } from "../geometry/twins.ts";
-import { twinQuadEars } from "../geometry/twinsK7.ts";
+import { ccwIds, twinQuadEars, twinSharedPart } from "../geometry/twinsK7.ts";
+import { interiorsDisjoint } from "../geometry/twinsK8.ts";
 import {
   estimateHoleWork,
   findKHoles,
+  findNewKHoles,
   isKHole,
 } from "../geometry/holes.ts";
 import type { HoleAnalysis, IdPt, KHole } from "../geometry/holes.ts";
@@ -651,6 +653,215 @@ export function evalMoveSpec(
       // truthful failure (integrity failure with a captured fixture).
       const fb = escapeNearEdge(u, v, prev, next, placedPts, window);
       return fb.ok ? { pt: fb.point } : null;
+    }
+    case "escape-edge-accept": {
+      // Lemma 9 A1/A2: near-first halving just outside a CCW ring edge,
+      // accepted only after which every `grow` list + the new point is an exact
+      // hole (and, with `meet`, the first two meet exactly in a convex part).
+      const newId = `p${state.points.length + 1}`;
+      const placedPts = state.points.map((p) => p.pt);
+      for (const opt of moveSpec.options) {
+        const edgeIds = lookupVar(state, opt.edge.v);
+        const ringIds = lookupVar(state, opt.ring.v);
+        const growLists = opt.grow.map((g) => lookupVar(state, g.v));
+        if (
+          !Array.isArray(edgeIds) ||
+          edgeIds.length !== 2 ||
+          !Array.isArray(ringIds) ||
+          ringIds.length < 4 ||
+          !growLists.every((g) => Array.isArray(g))
+        ) {
+          throw new ConstructionIntegrityError(
+            "escape-edge-accept: edge/ring/grow vars misbound",
+            "escape-edge",
+          );
+        }
+        const n = ringIds.length;
+        const uPos = ringIds.indexOf(edgeIds[0] as string);
+        const vPos = ringIds.indexOf(edgeIds[1] as string);
+        if (uPos < 0 || vPos !== (uPos + 1) % n) {
+          throw new ConstructionIntegrityError(
+            "escape-edge-accept: edge is not a CCW edge of the ring",
+            "escape-edge",
+          );
+        }
+        const ringPts = ringIds.map((id) => lookupId(state, id));
+        if (ringPts.some((q) => q === null)) {
+          return null;
+        }
+        const u = ringPts[uPos] as Pt;
+        const v = ringPts[vPos] as Pt;
+        const prev = ringPts[(uPos - 1 + n) % n] as Pt;
+        const next = ringPts[(vPos + 1) % n] as Pt;
+        const accept = (cand: Pt): boolean => {
+          const ptOf = (id: string): Pt | null =>
+            id === newId ? cand : lookupId(state, id);
+          const all = [...placedPts, cand];
+          const lists: string[][] = [];
+          for (const g of growLists as string[][]) {
+            const ids = [...g, newId];
+            const pts = ids.map((id) => ptOf(id));
+            if (pts.some((q) => q === null) || !isKHole(pts as Pt[], all)) {
+              return false;
+            }
+            lists.push(ids);
+          }
+          if (opt.meet !== undefined) {
+            return (
+              twinSharedPart(
+                lists[0] as string[],
+                lists[1] as string[],
+                ptOf,
+                opt.meet,
+              ) !== null
+            );
+          }
+          return true;
+        };
+        const near = escapeNearEdge(u, v, prev, next, placedPts, window, accept);
+        if (near.ok) {
+          return { pt: near.point };
+        }
+      }
+      return null;
+    }
+    case "forcing-pair": {
+      // Lemma 9 A3: candidates just outside each ring edge (canonical order),
+      // accepted when two 6-holes through the new point meet exactly in a
+      // triangle and neither has the whole `chain` as consecutive vertices.
+      const ringIds = lookupVar(state, moveSpec.ring.v);
+      const chainIds = moveSpec.chain.map((c) => lookupVar(state, c));
+      if (
+        !Array.isArray(ringIds) ||
+        ringIds.length < 4 ||
+        !chainIds.every((c) => typeof c === "string")
+      ) {
+        throw new ConstructionIntegrityError(
+          "forcing-pair: ring/chain vars misbound",
+          "forcing-pair",
+        );
+      }
+      const ringPts = ringIds.map((id) => lookupId(state, id));
+      if (ringPts.some((q) => q === null)) {
+        return null;
+      }
+      const newId = `p${state.points.length + 1}`;
+      const [c0, c1, c2] = chainIds as [string, string, string];
+      const consecutive = (ids: readonly string[]): boolean => {
+        const k = ids.length;
+        for (let i = 0; i < k; i += 1) {
+          const a = ids[i] as string;
+          const b = ids[(i + 1) % k] as string;
+          const c = ids[(i + 2) % k] as string;
+          if ((a === c0 && b === c1 && c === c2) || (a === c2 && b === c1 && c === c0)) {
+            return true;
+          }
+        }
+        return false;
+      };
+      const half = Rat.make(1n, 2n);
+      const fractions = [Rat.make(1n, 3n), half, Rat.make(2n, 3n)];
+      for (let m = 0; m < ringIds.length; m += 1) {
+        const a = ringPts[m] as Pt;
+        const b = ringPts[(m + 1) % ringIds.length] as Pt;
+        const nx = b.y.sub(a.y);
+        const ny = a.x.sub(b.x);
+        for (const f of fractions) {
+          const mx = a.x.add(b.x.sub(a.x).mul(f));
+          const my = a.y.add(b.y.sub(a.y).mul(f));
+          for (let e = 1; e <= 10; e += 1) {
+            const t = Rat.make(1n, 2n ** BigInt(e));
+            const cand = pt(mx.add(nx.mul(t)), my.add(ny.mul(t)));
+            if (checkPlacement(state, cand, config.window) !== null) {
+              continue;
+            }
+            const ids: IdPt[] = [
+              ...idPtsOf(state),
+              { id: newId, pt: cand },
+            ];
+            const news = findNewKHoles(ids, 6, newId);
+            const ptOf = (id: string): Pt | null =>
+              ids.find((q) => q.id === id)?.pt ?? null;
+            const hs = news.holes;
+            for (let i = 0; i < hs.length; i += 1) {
+              for (let j = i + 1; j < hs.length; j += 1) {
+                const ai = (hs[i] as KHole).verts;
+                const bj = (hs[j] as KHole).verts;
+                if (consecutive(ai) || consecutive(bj)) {
+                  continue;
+                }
+                if (twinSharedPart(ai, bj, ptOf, 3) !== null) {
+                  return { pt: cand };
+                }
+              }
+            }
+          }
+        }
+      }
+      return null;
+    }
+    case "double-extend": {
+      // Lemma 9 A4: two interior-disjoint holes sharing exactly one vertex v;
+      // a point near v (directions: sums of the two neighbour edge vectors, both
+      // signs; dyadic halving) extending BOTH to exact holes whose interiors stay
+      // disjoint.
+      const holes = enumerateHoles(state, moveSpec.holeSize, config);
+      const newId = `p${state.points.length + 1}`;
+      const ptsOf = (ids: readonly string[]): Pt[] =>
+        ids.map((id) => lookupId(state, id) as Pt);
+      for (let i = 0; i < holes.length; i += 1) {
+        for (let j = i + 1; j < holes.length; j += 1) {
+          const a = (holes[i] as KHole).verts;
+          const b = (holes[j] as KHole).verts;
+          const sh = a.filter((x) => b.includes(x));
+          if (sh.length !== 1) {
+            continue;
+          }
+          const pa = ptsOf(a);
+          const pb = ptsOf(b);
+          if (!interiorsDisjoint(pa, pb)) {
+            continue;
+          }
+          const vId = sh[0] as string;
+          const v = lookupId(state, vId) as Pt;
+          const nbrs = (ids: readonly string[]): Pt[] => {
+            const ring = ccwIds(ids, (id) => lookupId(state, id)) as string[];
+            const at = ring.indexOf(vId);
+            return [
+              lookupId(state, ring[(at + 1) % ring.length] as string) as Pt,
+              lookupId(state, ring[(at + ring.length - 1) % ring.length] as string) as Pt,
+            ];
+          };
+          for (const wa of nbrs(a)) {
+            for (const wb of nbrs(b)) {
+              const dx = wa.x.sub(v.x).add(wb.x.sub(v.x));
+              const dy = wa.y.sub(v.y).add(wb.y.sub(v.y));
+              for (const sgn of [1n, -1n]) {
+                for (let e = 1; e <= 40; e += 1) {
+                  const t = Rat.make(sgn, 2n ** BigInt(e));
+                  const cand = pt(v.x.add(dx.mul(t)), v.y.add(dy.mul(t)));
+                  if (checkPlacement(state, cand, config.window) !== null) {
+                    continue;
+                  }
+                  const ptOf = (id: string): Pt | null =>
+                    id === newId ? cand : lookupId(state, id);
+                  const all = [...state.points.map((p) => p.pt), cand];
+                  const ka = [...a, newId].map((id) => ptOf(id) as Pt);
+                  const kb = [...b, newId].map((id) => ptOf(id) as Pt);
+                  if (
+                    isKHole(ka, all) &&
+                    isKHole(kb, all) &&
+                    interiorsDisjoint(ka, kb)
+                  ) {
+                    return { pt: cand };
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      return null;
     }
     case "escape-beyond-edge": {
       const edgeIds = lookupVar(state, moveSpec.sharedEdge.v);

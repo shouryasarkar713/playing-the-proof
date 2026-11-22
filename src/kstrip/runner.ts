@@ -44,7 +44,7 @@ import {
   estimateCost,
   floorRat,
 } from "./recursion.ts";
-import type { Budget, RunSpec, Variant } from "./recursion.ts";
+import type { Budget, Estimate, RunSpec, Variant } from "./recursion.ts";
 import {
   StripRegion,
   interiorsDisjoint,
@@ -68,8 +68,8 @@ import type {
   StripClaim,
 } from "./types.ts";
 
-class BudgetExceeded extends Error {}
-class RunFailure extends Error {
+export class BudgetExceeded extends Error {}
+export class RunFailure extends Error {
   readonly status: RunStatus;
   constructor(status: RunStatus, message: string) {
     super(message);
@@ -77,7 +77,7 @@ class RunFailure extends Error {
   }
 }
 
-interface Ctx {
+export interface Ctx {
   readonly spec: RunSpec;
   readonly budget: Budget;
   readonly policy: BreakerPolicy;
@@ -92,6 +92,10 @@ interface Ctx {
   levels: LevelReport[];
   checks: { name: string; ok: boolean }[];
   trace: TraceObserver | null;
+  // Optional override of Breaker's allowance after Maker's m-th move of a
+  // phase (the spec interpreter supplies its declared formula here). Null:
+  // the built-in rule (s per move; floor(m s) - floor((m-1) s) bichromatic).
+  allowance: ((m: bigint) => number) | null;
 }
 
 // ---- optional trace (observation only; never metered, never read back) ----
@@ -270,6 +274,9 @@ function breakerMove(
 
 // Breaker moves owed after Maker's m-th move of a phase.
 function breakerAfter(ctx: Ctx, m: bigint): number {
+  if (ctx.allowance !== null) {
+    return ctx.allowance(m);
+  }
   const s = ctx.spec.s ?? Rat.ONE;
   if (ctx.spec.variant === "bichromatic") {
     return Number(floorRat(s.mul(Rat.make(m))) - floorRat(s.mul(Rat.make(m - 1n))));
@@ -337,7 +344,7 @@ function basePhase(
   }
 }
 
-function sortStrips(strips: Pt[][]): Pt[][] {
+export function sortStrips(strips: Pt[][]): Pt[][] {
   const out = strips.map((s) => [...s].sort((a, b) => a.x.cmp(b.x)));
   out.sort((a, b) => (a[0] as Pt).x.cmp((b[0] as Pt).x));
   return out;
@@ -447,7 +454,7 @@ interface PairState {
   placed: boolean;
 }
 
-function pairingPhase(
+export function pairingPhase(
   ctx: Ctx,
   level: number,
   inputsAll: Pt[][],
@@ -715,7 +722,7 @@ function pairingPhase(
 // ---------------------------------------------------------------------------
 // Grouping phase (Theorem 4).
 
-function groupingPhase(
+export function groupingPhase(
   ctx: Ctx,
   level: number,
   inputsAll: Pt[][],
@@ -948,47 +955,82 @@ function traceBaseEnd(
   }));
 }
 
+// Base-level primitives (also driven by the declarative spec interpreter,
+// kstrip/spec): the number of Maker moves is an ARGUMENT, so whoever calls
+// them owns the round formula.
+export function monoBaseLevel1(ctx: Ctx, need: bigint, rounds: bigint): Pt[][] {
+  traceBaseStart(ctx, 1, "base", need, rounds);
+  basePhase(ctx, 1, rounds, "base");
+  const chains = ctx.fpts.map((o) => [o.pt]);
+  const sortedV = sortStrips(validStripsFromChains(ctx, chains));
+  traceBaseEnd(ctx, 1, "base", sortedV, null);
+  return sortedV;
+}
+
+export function monoBaseLevel2(ctx: Ctx, need: bigint, rounds: bigint, s: bigint): Pt[][] {
+  traceBaseStart(ctx, 2, "base", need, rounds);
+  basePhase(ctx, 2, rounds, "base");
+  const sorted = [...ctx.fpts].map((o) => o.pt).sort((a, b) => a.x.cmp(b.x));
+  const chains: Pt[][] = [];
+  for (let i = 0; i + 1 < sorted.length; i += 2) {
+    chains.push([sorted[i] as Pt, sorted[i + 1] as Pt]);
+  }
+  const v = validStripsFromChains(ctx, chains);
+  const rep2: LevelReport = {
+    level: 2,
+    phase: "base",
+    units: chains.length,
+    required: Number(need),
+    survivors: v.length,
+    guaranteedAtEnd: v.length,
+    breakerMoves: Number(rounds * s),
+    absorbedBreakerPoints: 0,
+    wastedBreakerPoints: 0,
+    interiorBreakerPoints: 0,
+    proposition1Holds: true,
+    tilt: null,
+  };
+  ctx.levels.push(rep2);
+  traceBaseEnd(ctx, 2, "base", v, rep2);
+  return v;
+}
+
+export function bichromaticBaseLevel1(ctx: Ctx, need: bigint, rounds: bigint): Pt[][] {
+  traceBaseStart(ctx, 1, "bichromatic-base", need, rounds);
+  basePhase(ctx, 1, rounds, "bichromatic-base");
+  const d = chooseAndApplyTilt(ctx, []);
+  const chains = ctx.fpts.filter((o) => o.owner === "maker").map((o) => [o.pt]);
+  const v = validStripsFromChains(ctx, chains);
+  const rep1: LevelReport = {
+    level: 1,
+    phase: "bichromatic-base",
+    units: chains.length,
+    required: Number(need),
+    survivors: v.length,
+    guaranteedAtEnd: v.length,
+    breakerMoves: ctx.fpts.filter((o) => o.owner === "breaker").length,
+    absorbedBreakerPoints: 0,
+    wastedBreakerPoints: 0,
+    interiorBreakerPoints: 0,
+    proposition1Holds: true,
+    tilt: d.toString(),
+  };
+  ctx.levels.push(rep1);
+  const sv = sortStrips(v);
+  traceBaseEnd(ctx, 1, "bichromatic-base", sv, rep1);
+  return sv;
+}
+
 function build(ctx: Ctx, level: number, need: bigint): Pt[][] {
   const spec = ctx.spec;
   const bichro = spec.variant === "bichromatic";
   if (!bichro) {
     const s = spec.variant === "mono-1:1" ? 1n : (spec.s as Rat).n;
     if (level === 1) {
-      const rounds = (need + s) / (s + 1n);
-      traceBaseStart(ctx, 1, "base", need, rounds);
-      basePhase(ctx, 1, rounds, "base");
-      const chains = ctx.fpts.map((o) => [o.pt]);
-      const sortedV = sortStrips(validStripsFromChains(ctx, chains));
-      traceBaseEnd(ctx, 1, "base", sortedV, null);
-      return sortedV;
+      return monoBaseLevel1(ctx, need, (need + s) / (s + 1n));
     }
     if (level === 2) {
-      const rounds = (2n * need + s) / (s + 1n);
-      traceBaseStart(ctx, 2, "base", need, rounds);
-      basePhase(ctx, 2, rounds, "base");
-      const sorted = [...ctx.fpts].map((o) => o.pt).sort((a, b) => a.x.cmp(b.x));
-      const chains: Pt[][] = [];
-      for (let i = 0; i + 1 < sorted.length; i += 2) {
-        chains.push([sorted[i] as Pt, sorted[i + 1] as Pt]);
-      }
-      const v = validStripsFromChains(ctx, chains);
-      const rep2: LevelReport = {
-        level: 2,
-        phase: "base",
-        units: chains.length,
-        required: Number(need),
-        survivors: v.length,
-        guaranteedAtEnd: v.length,
-        breakerMoves: Number(rounds * s),
-        absorbedBreakerPoints: 0,
-        wastedBreakerPoints: 0,
-        interiorBreakerPoints: 0,
-        proposition1Holds: true,
-        tilt: null,
-      };
-      ctx.levels.push(rep2);
-      traceBaseEnd(ctx, 2, "base", v, rep2);
-      return v;
+      return monoBaseLevel2(ctx, need, (2n * need + s) / (s + 1n), s);
     }
     const below = build(ctx, level - 1, 4n * s * need);
     return spec.variant === "mono-1:1"
@@ -999,29 +1041,7 @@ function build(ctx: Ctx, level: number, need: bigint): Pt[][] {
   const sRat = spec.s ?? Rat.ZERO;
   const eps = Rat.make(2n).sub(sRat);
   if (level === 1) {
-    traceBaseStart(ctx, 1, "bichromatic-base", need, need);
-    basePhase(ctx, 1, need, "bichromatic-base");
-    const d = chooseAndApplyTilt(ctx, []);
-    const chains = ctx.fpts.filter((o) => o.owner === "maker").map((o) => [o.pt]);
-    const v = validStripsFromChains(ctx, chains);
-    const rep1: LevelReport = {
-      level: 1,
-      phase: "bichromatic-base",
-      units: chains.length,
-      required: Number(need),
-      survivors: v.length,
-      guaranteedAtEnd: v.length,
-      breakerMoves: ctx.fpts.filter((o) => o.owner === "breaker").length,
-      absorbedBreakerPoints: 0,
-      wastedBreakerPoints: 0,
-      interiorBreakerPoints: 0,
-      proposition1Holds: true,
-      tilt: d.toString(),
-    };
-    ctx.levels.push(rep1);
-    const sv = sortStrips(v);
-    traceBaseEnd(ctx, 1, "bichromatic-base", sv, rep1);
-    return sv;
+    return bichromaticBaseLevel1(ctx, need, need);
   }
   const t = ceilRat(Rat.make(2n * need).div(eps));
   const below = build(ctx, level - 1, 2n * t);
@@ -1029,6 +1049,60 @@ function build(ctx: Ctx, level: number, need: bigint): Pt[][] {
 }
 
 // ---------------------------------------------------------------------------
+
+// Fresh execution context (shared by runKStrip and the spec interpreter).
+export function newCtx(
+  spec: RunSpec,
+  budget: Budget,
+  policy: BreakerPolicy,
+  trace: TraceObserver | null,
+): Ctx {
+  return {
+    spec,
+    budget,
+    policy,
+    mono: spec.variant !== "bichromatic",
+    frame: IDENTITY,
+    base: [],
+    fpts: [],
+    log: [],
+    round: 0,
+    n: 0,
+    work: 0n,
+    levels: [],
+    checks: [],
+    trace,
+    allowance: null,
+  };
+}
+
+// The RunResult of a (possibly aborted) execution; the single place that
+// assembles it, so both executors report identically.
+export function resultOf(
+  status: RunStatus,
+  message: string,
+  estimate: Estimate,
+  budget: Budget,
+  goal: bigint,
+  ctx: Ctx | null,
+  claims: StripClaim[],
+): RunResult {
+  return {
+    status,
+    message,
+    estimate,
+    budget,
+    claims,
+    goal,
+    goalMet: status === "completed" && BigInt(claims.length) >= goal,
+    rounds: ctx?.round ?? 0,
+    points: ctx?.base.map((b) => ({ pt: b.pt, owner: b.owner })) ?? [],
+    log: ctx?.log ?? [],
+    levels: ctx?.levels ?? [],
+    checks: ctx?.checks ?? [],
+    work: ctx?.work ?? 0n,
+  };
+}
 
 export interface RunOptions {
   readonly variant?: Variant;
@@ -1061,21 +1135,7 @@ export function runKStrip(
     message: string,
     ctx: Ctx | null,
     claims: StripClaim[],
-  ): RunResult => ({
-    status,
-    message,
-    estimate,
-    budget,
-    claims,
-    goal,
-    goalMet: status === "completed" && BigInt(claims.length) >= goal,
-    rounds: ctx?.round ?? 0,
-    points: ctx?.base.map((b) => ({ pt: b.pt, owner: b.owner })) ?? [],
-    log: ctx?.log ?? [],
-    levels: ctx?.levels ?? [],
-    checks: ctx?.checks ?? [],
-    work: ctx?.work ?? 0n,
-  });
+  ): RunResult => resultOf(status, message, estimate, budget, goal, ctx, claims);
   if (!estimate.supported) {
     return mk("unsupported", estimate.unsupportedReason ?? "unsupported", null, []);
   }
@@ -1085,22 +1145,7 @@ export function runKStrip(
       return mk("refused", `refused before execution: ${bc.exceeded.join("; ")}`, null, []);
     }
   }
-  const ctx: Ctx = {
-    spec,
-    budget,
-    policy: breakerPolicy,
-    mono: variant !== "bichromatic",
-    frame: IDENTITY,
-    base: [],
-    fpts: [],
-    log: [],
-    round: 0,
-    n: 0,
-    work: 0n,
-    levels: [],
-    checks: [],
-    trace: opts.trace ?? null,
-  };
+  const ctx = newCtx(spec, budget, breakerPolicy, opts.trace ?? null);
   try {
     const strips = build(ctx, k, goal);
     const claims = finalClaims(ctx, strips);
@@ -1124,7 +1169,7 @@ export function runKStrip(
 
 // Convert to base coordinates and re-verify EVERYTHING there, independently
 // of the frame bookkeeping.
-function finalClaims(ctx: Ctx, strips: Pt[][]): StripClaim[] {
+export function finalClaims(ctx: Ctx, strips: Pt[][]): StripClaim[] {
   const v = ctx.frame.dir;
   const frame = frameOf(v);
   const S = ctx.base.map((b) => b.pt);

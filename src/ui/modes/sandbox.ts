@@ -397,6 +397,7 @@ export function mountSandbox(
   sovLabel.textContent = "strategy overlay ";
   const sovSelect = document.createElement("select");
   sovSelect.id = "overlay-strategy";
+  sovSelect.setAttribute("aria-label", "Strategy overlay");
   const sovBlank = document.createElement("option");
   sovBlank.value = "";
   sovBlank.textContent = "off";

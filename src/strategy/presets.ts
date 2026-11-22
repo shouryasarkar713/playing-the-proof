@@ -5,6 +5,7 @@
 import type { StrategyStart } from "../game/types.ts";
 import { presetSupplied as k6Preset } from "./strategies/k6/preset.ts";
 import { presetSupplied as k7Preset } from "./strategies/k7/preset.ts";
+import { presetSupplied as k8Preset } from "./strategies/k8/preset.ts";
 
 export function presetStartFor(strategyId: string): StrategyStart | undefined {
   if (strategyId === "esmb-k6" || strategyId === "esmb-k6-wide") {
@@ -13,6 +14,9 @@ export function presetStartFor(strategyId: string): StrategyStart | undefined {
   if (strategyId === "esmb-k7") {
     return k7Preset();
   }
+  if (strategyId === "esmb-k8") {
+    return k8Preset();
+  }
   return undefined;
 }
 
@@ -20,5 +24,8 @@ export function presetStartFor(strategyId: string): StrategyStart | undefined {
 // falls back to the shipped preset). esmb-k6 keeps its explicit-record
 // contract (entry chooser / promotion supply it).
 export function defaultStartFor(strategyId: string): StrategyStart | undefined {
-  return strategyId === "esmb-k7" ? k7Preset() : undefined;
+  if (strategyId === "esmb-k7") {
+    return k7Preset();
+  }
+  return strategyId === "esmb-k8" ? k8Preset() : undefined;
 }
