@@ -85,7 +85,7 @@ describe("corrupt files: parse-level rejections", () => {
 
   it("wrong version → bad-version with operands", () => {
     const doc = asObj(readSample("k5-safe.replay.json"));
-    doc["version"] = 4;
+    doc["version"] = 5;
     const r = parseReplayFile(JSON.stringify(doc));
     expect(r.ok).toBe(false);
     if (r.ok) {
@@ -93,7 +93,7 @@ describe("corrupt files: parse-level rejections", () => {
     }
     const hit = r.issues.find((i) => i.code === "bad-version");
     expect(hit?.path).toBe("version");
-    expect(hit?.expected).toBe("2 | 3");
+    expect(hit?.expected).toBe("2 | 3 | 4");
   });
 
   it("non-canonical rational → bad-rational with a JSON path", () => {

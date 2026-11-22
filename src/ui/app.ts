@@ -6,6 +6,8 @@ import { Rat } from "../geometry/rat.ts";
 import type { HoleAnalysis } from "../geometry/holes.ts";
 import { stateHash } from "../game/hash.ts";
 import { analyzeWinHoles } from "../game/gamemode.ts";
+import { isUnitBias } from "../game/turnorder.ts";
+import { biasLabel } from "../explain/bias.ts";
 import type {
   Configuration,
   GameMode,
@@ -115,7 +117,7 @@ export interface Shell {
   cycleOverlay(n: number): void;
   setExtraLayer(nodes: SceneNode[]): void;
   toEntry(): void;
-  startSandbox(k?: 3 | 4 | 5 | 6 | 7 | 8, gameMode?: GameMode): void;
+  startSandbox(k?: 3 | 4 | 5 | 6 | 7 | 8, gameMode?: GameMode, bias?: Rat): void;
   // Parameter Lab / k-strip explorer; an experiment file is replayed on mount.
   startLab(experiment?: ExperimentFile): void;
   startKStrip(experiment?: ExperimentFile): void;
@@ -400,11 +402,13 @@ export function createShell(
     startSandbox(
       k: 3 | 4 | 5 | 6 | 7 | 8 = 5,
       gameMode: GameMode = "monochromatic",
+      bias?: Rat,
     ): void {
+      const biasText = bias === undefined || isUnitBias(bias) ? "" : `, bias ${biasLabel(bias)}`;
       setFig(
         gameMode === "bichromatic"
-          ? `Free point sets — Maker-only empty convex ${k}-gons (k = ${k}, bichromatic rule)`
-          : `Free point sets — empty convex ${k}-gons (k = ${k})`,
+          ? `Free point sets — Maker-only empty convex ${k}-gons (k = ${k}, bichromatic rule${biasText})`
+          : `Free point sets — empty convex ${k}-gons (k = ${k}${biasText})`,
       );
       clearMode();
       renderCbs.length = 0;
@@ -417,6 +421,8 @@ export function createShell(
             window: config.window,
             // Absent means monochromatic: only the literal flag is stored.
             ...(gameMode === "bichromatic" ? { gameMode } : {}),
+            // Absent means 1:1: only a bias other than 1:1 is passed on.
+            ...(bias !== undefined && !isUnitBias(bias) ? { bias } : {}),
           },
           k,
         },
@@ -428,7 +434,7 @@ export function createShell(
       }
       const handle = mountSandbox(shell, panels, toast);
       mode = handle;
-      shell.setRestart(() => shell.startSandbox(k, gameMode));
+      shell.setRestart(() => shell.startSandbox(k, gameMode, bias));
       shell.render();
     },
     startLab(experiment?: ExperimentFile): void {

@@ -214,7 +214,7 @@ describe("format v3", () => {
       (d["config"] as Record<string, unknown>)["gameMode"] = "tri";
     });
     expect(parseReplayFile(v3bad).ok).toBe(false);
-    for (const bad of [1, 4, "3", null]) {
+    for (const bad of [1, 5, "3", null]) {
       const t = mutate(sandboxReplay(true), (d) => {
         d["version"] = bad;
       });

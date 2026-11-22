@@ -45,6 +45,14 @@ export function buildIntent(
       reason: { reason: "wrong-turn", at: action.at, detail: "not-breaker" },
     };
   }
+  // Biased sessions enforce the bias turn order (game/turnorder.ts): only
+  // the player to move may place. 1:1 sandbox sessions keep free owners.
+  if (state.bias !== undefined && owner !== state.turn) {
+    return {
+      kind: "rejected",
+      reason: { reason: "wrong-turn", at: action.at, detail: "out-of-turn" },
+    };
+  }
   const rejection = checkPlacement(state, action.at, ctx.config.window);
   if (rejection !== null) {
     return { kind: "rejected", reason: rejection };

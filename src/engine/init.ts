@@ -29,7 +29,8 @@ import type {
   StrategyStart,
   Terminal,
 } from "../game/types.ts";
-import type { Rat } from "../geometry/rat.ts";
+import { Rat } from "../geometry/rat.ts";
+import { normalizeBias, validateBias } from "../game/turnorder.ts";
 import type { CheckResult } from "../game/integrity.ts";
 import { integrityReport } from "../game/integrity.ts";
 import { checkPost, checkPre } from "../verification/pipeline.ts";
@@ -515,6 +516,26 @@ export function initSession(
   // Monochromatic is represented by ABSENCE (hash/structure stability).
   const bichromatic = isBichromatic(request.config);
   const modeField = bichromatic ? { gameMode: "bichromatic" as const } : {};
+  // Bias 1:s (game/turnorder.ts). 1:1 is represented by ABSENCE.
+  const rawBias = (request.config as { bias?: unknown }).bias;
+  if (rawBias !== undefined && !(rawBias instanceof Rat)) {
+    return malformed("bias must be an exact rational");
+  }
+  if (rawBias !== undefined) {
+    const why = validateBias(rawBias);
+    if (why !== null) {
+      return malformed(`invalid bias: ${why}`);
+    }
+  }
+  const bias = normalizeBias(rawBias);
+  const biasField = bias !== undefined ? { bias } : {};
+  if (bias !== undefined && request.kind === "guided") {
+    // Fail closed: every guided strategy is a 1:1 construction (one Breaker
+    // point, one Maker reply); none encodes a multi-point Breaker round.
+    return malformed(
+      "unsupported-bias: guided strategies are constructions for bias 1:1 only",
+    );
+  }
   if (request.kind === "sandbox") {
     if (request.config.mode !== "sandbox") {
       return malformed("sandbox request carries a non-sandbox mode");
@@ -534,6 +555,7 @@ export function initSession(
       k: request.k,
       mode: "sandbox",
       ...modeField,
+      ...biasField,
       points: [],
       turn: "maker",
       terminal: null,

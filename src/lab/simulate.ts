@@ -22,6 +22,7 @@ import type { KHole } from "../geometry/holes.ts";
 import { findNewWinHoles, findWinHoles } from "../game/gamemode.ts";
 import type { GameState, PlacedPoint, Player } from "../game/types.ts";
 import { floorRat } from "./bias.ts";
+import { breakerQuota } from "../game/turnorder.ts";
 import {
   SIM_DEFAULT_OPS_BUDGET,
   SIM_DEFAULT_ROUNDS,
@@ -298,11 +299,10 @@ export function runSimulation(cfg: LabConfig, opts: SimOptions): SimResult {
     return null;
   };
 
-  const perRound = (r: number): number => {
-    const a = floorRat(cfg.bias.mul(Rat.make(BigInt(r))));
-    const b = floorRat(cfg.bias.mul(Rat.make(BigInt(r - 1))));
-    return Number(a - b);
-  };
+  // The engine's turn rule (game/turnorder.ts): Breaker's cumulative quota
+  // after Maker's r-th point is floor(s*r).
+  const perRound = (r: number): number =>
+    breakerQuota(cfg.bias, r) - breakerQuota(cfg.bias, r - 1);
 
   if (cfg.model === "online") {
     for (let r = 1; r <= maxRounds; r += 1) {

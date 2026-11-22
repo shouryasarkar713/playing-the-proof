@@ -7,6 +7,7 @@
 // structural interface (engine may not import replay/ even for types —
 // tests prove assignability to ReplayFile). No store, no DOM, no I/O.
 import type { Rat } from "../geometry/rat.ts";
+import { normalizeBias } from "../game/turnorder.ts";
 import type { Pt } from "../geometry/pt.ts";
 import type {
   GameMode,
@@ -54,12 +55,13 @@ export interface AssembledReplay {
   format: "esmb-replay";
   // 2 for every monochromatic session (byte-identical to the pre-flag
   // format); 3 exactly when config.gameMode is present (bichromatic).
-  version: 2 | 3;
+  version: 2 | 3 | 4;
   meta: { createdAt: string; app: string; appVersion: string; label?: string };
   config: {
     k: 3 | 4 | 5 | 6 | 7 | 8;
     mode: "proof" | "break" | "sandbox";
     gameMode?: GameMode;
+    bias?: Rat;
     window: { xMin: Rat; yMin: Rat; xMax: Rat; yMax: Rat };
   };
   strategy: { id: string; version: string } | null;
@@ -75,6 +77,8 @@ export interface AssembleOpts {
   mode: "proof" | "break" | "sandbox";
   // Optional; absent === "monochromatic" (writes format v2 unchanged).
   gameMode?: GameMode;
+  // Optional; absent (or 1:1) === unbiased. A bias other than 1:1 writes v4.
+  bias?: Rat;
   window: { xMin: Rat; yMin: Rat; xMax: Rat; yMax: Rat };
   strategyId: string | null;
   strategyStart: StrategyStart | null;
@@ -106,16 +110,23 @@ export function assembleReplayFile(
     strategyVersion = reg.def.version;
     def = reg.def;
   }
+  // Lowest format version that can express the session: v2 = monochromatic
+  // 1:1, v3 = bichromatic 1:1, v4 = any bias other than 1:1 (carries both
+  // gameMode and bias explicitly).
+  const bias = normalizeBias(opts.bias);
+  const bichromatic = opts.gameMode === "bichromatic";
+  const version: 2 | 3 | 4 = bias !== undefined ? 4 : bichromatic ? 3 : 2;
   return {
     format: "esmb-replay",
-    version: opts.gameMode === "bichromatic" ? 3 : 2,
+    version,
     meta: { ...opts.meta },
     config: {
       k: opts.k,
       mode: opts.mode,
-      ...(opts.gameMode === "bichromatic"
-        ? { gameMode: "bichromatic" as const }
+      ...(version >= 3
+        ? { gameMode: bichromatic ? ("bichromatic" as const) : ("monochromatic" as const) }
         : {}),
+      ...(bias !== undefined ? { bias } : {}),
       window: { ...opts.window },
     },
     strategy,
