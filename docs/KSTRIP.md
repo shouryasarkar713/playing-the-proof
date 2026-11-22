@@ -139,19 +139,93 @@ general position) at fresh integer abscissae (I).
   (S_{2j-1}, S_{2j}), j in [t], with t extension points p_j (the disjointness claims need disjoint pairs).
 * Breaker points cannot be adopted; claimed strips are Maker-only and the closed regions contain no other
   point at all (X: `isStrip` with S = all points, and an ownership check). Strips are w.r.t. a common
-  tilted direction (D,-1); each level chooses the smallest dyadic ±2^-n such that, in the tilted frame,
-  all x are distinct, both candidates of every pair are strict strips meeting exactly in the halfline
-  below p_j, no Maker point lies in a candidate and each Breaker point lies in at most one closed
-  candidate region (Observation 6 as a verified search, not a computed delta_0).
+  tilted direction v = (delta, -1) chosen after Breaker's moves of the phase (below).
 * Base level: 1-strips are single Maker points; after the tilt no point shares a v-line, so every Maker
   point is a 1-strip. The pairing step then uses the k = 1 cone convention (I) to get 2-strips.
-* **Gap in the paper's count.** The proof finds >= eps·t "disjoint strips" among 2t candidates with
-  t = ceil(r/eps). Two surviving candidates of one pair share the halfline below p_j, so by Definition 2
-  they are *not* parallel; only t − floor(B/2) pairs are guaranteed, i.e. eps·t/2. Example: r = 2, s = 3/2,
-  paper t = 4: 8 candidates, B = 6 Breaker points can kill 3 whole pairs, leaving 2 alive candidates
-  in one pair = 1 parallel strip < r (`bichromaticGuarantee`, tested). The executor uses the strict
-  t = ceil(2r/eps). Non-integer bias: after Maker's m-th point Breaker has floor(m·s) points in total (I;
-  the paper's tie-ordering convention for non-integer speeds is not exercised).
+
+#### Tilt conditions (`checkTilt`, runner.ts)
+
+Our reading of Observation 6 and of the choice of direction in the proof of Theorem 5: after Breaker has
+played B = floor(t s) points in the phase, Maker picks delta so that, in the tilted frame:
+**T1** no two board points share a v-line (in particular no Breaker point lies on the v-line through any p_j);
+**T2** each candidate S_i ∪ {p_j} is a strict cap; **T3** the two candidates of a pair meet exactly in the
+v-halfline below p_j; **T4** closed regions of different pairs are disjoint; **T5** no point that was on the
+board *before Breaker's moves of this phase* (Maker's points, Breaker's earlier points), other than a
+candidate's own vertices, lies in a closed candidate region (the candidates are strips "disjoint from S");
+**T6** every Breaker point of the phase lies in at most one closed region. T6 follows from T1, T3, T4 and is
+also checked per point (`tiltPointVerdict`), because the counting rests on it.
+
+*Existence.* At delta = 0 the candidates are strips with respect to the board at the time p_j is placed, and
+their closed regions have pairwise disjoint x-projections except that the two candidates of a pair touch
+exactly at x(p_j). T2-T5 are finite conjunctions of strict inequalities in delta, hence hold for all small
+delta; T1 excludes finitely many values (x(q) + delta y(q) = x(r) + delta y(r) has at most one solution for
+distinct q, r); the delta = 0 failure of T6 (a Breaker point exactly below an apex, in both closed regions) is
+excluded by T1 for every delta != 0. So T1-T6 hold for all sufficiently small delta outside a finite set; the
+dyadic search ±2^-n, n = 1..60, finds one unless the required smallness is below 2^-60, in which case the run
+stops with the typed integrity failure "no admissible tilt found" (never with a silent success).
+
+*Count.* Under T5/T6 the B Breaker points of the phase spoil at most B of the 2t candidates; a pair has no free
+candidate only if both are spoiled (>= 2 points), so at least t - floor(B/2) pairs keep a free candidate, one
+strip each, and strips of different pairs are parallel by T4. This is the `pre-tilt` ledger bound
+U - floor(B/2). It needs T5: before T5 was enforced the search accepted the first direction in which every
+Breaker point lay in at most one region, including directions in which an *earlier* Breaker point lay inside
+a candidate, spoiling it at no cost to the phase budget. With k = 2, r = 1, s = 1/2 (two pairs, one Breaker
+point in the phase, reported bound 2), earlier Breaker points placed in the shadow of the accepted direction
+left 1 delivered strip (regression in `tests/kstrip/tilt.test.ts`). The acceptance now rejects such directions
+(T5) and checks T4 explicitly instead of only through Breaker points.
+
+*Intermediate states.* The pre-tilt bound is static (U - floor(B/2), B the phase total), so it is the same at
+every state of the phase; the monochromatic ledger bound is recomputed after every move.
+`tests/kstrip/ledger-soundness.test.ts` enumerates Breaker's pairing-phase moves over a cell grid (interior of
+each candidate, the shared halfline, below each end vertex, above the apex, far) combined with earlier-phase
+placements from a shadow grid, and checks at every ledger state of every play that the reported lower bound
+does not exceed the number of units that really deliver a strip (bichromatic: recounted with `isStrip` on the
+final board; monochromatic: verified claims). Exhaustive on the grid for k = 2, s = 1/2 (78 plays) and
+k = 2, s = 1 (676 plays); sampled for bichromatic k = 3; all ordered cell pairs for monochromatic k = 3.
+This is finite evidence on a grid; the argument above is the proof.
+
+*What the UI shows.* The explorer prints the ledger's lower bound at intermediate states and at the end, before
+the final re-verification of the claims. The final re-verification re-checks the strips that exist, not the
+bound that was displayed, so it would not have protected that number; the acceptance condition itself had to
+be fixed.
+
+#### The counting step of the published proof (our reading)
+
+*Reading.* Candidates are the 2t sets S_{2j-1} ∪ {p_j}, S_{2j} ∪ {p_j} (we read the proof's pairs as
+(S_{2j-1}, S_{2j}), j in [t], t = ceil(r/eps); with the literal indices S_j, S_{j+1} for j = 1..t consecutive
+pairs would share strips). Definition 2 calls two k-strips parallel if they are strips for the same halfline
+and C1 = conv(P1) + v, C2 = conv(P2) + v are disjoint; both are closed, so sharing a halfline means "not
+disjoint". Observation 6 itself distinguishes the two situations (second bullet: disjoint regions stay
+disjoint; third bullet: regions meeting exactly in {s} + d keep meeting exactly in {s} + v), and the proof of
+Theorem 5 states that the two candidates of a pair "intersect only in the line p_i + v". In Theorem 3 the proof
+counts one strip per index j (>= t indices out of 2t). Under this reading the two candidates of one pair are
+not disjoint, hence not parallel.
+
+*Consequence.* The pigeonhole (each Breaker point in at most one candidate region; 2t - (2 - eps)t = eps t free
+candidates) is confirmed; it counts free *candidates*. Whether "eps t >= r disjoint strips" follows depends on
+the free candidates lying in distinct pairs, which Definition 2 as written does not give.
+`tests/kstrip/bichromatic-count.test.ts` is an exact play with eps = 1/2, t = 4 (the proof's t for r = 2): 8
+candidates, 6 Breaker points occupying the interiors of the candidates of pairs 1-3; the two free candidates
+(`isStrip` on the final board) are the two candidates of pair 4; they meet in the halfline below p_4
+(`sharedHalfline`; `parallel` false), so one parallel strip results, not two. We read this as a gap in the
+counting step as literally written, not as a refutation of Theorem 5: with t = ceil(2r/eps) at least
+t - floor(floor(t s)/2) >= t eps / 2 >= r pairs keep a free candidate, giving r parallel strips. The published
+statement is not declared false; under a reading in which candidates sharing the apex halfline count as
+disjoint (cf. the third bullet of Observation 6) the published constant would suffice.
+
+*Boundary points.* A Breaker point on the shared halfline lies on the boundary of both candidates, so by
+Definition 2 (`int(C) ∩ S = ∅`, `∂C ∩ S = P`) it spoils both (exact fixture in `tilt.test.ts`: at delta = 0 both
+`isStrip` calls fail with `boundary-point`). The choice of delta excludes this (T1): after the tilt the point is
+off the v-line through p_j and lies in at most one region. "A Breaker point spoils at most one candidate" is
+therefore a property of the chosen direction (T1, T4, T5), not of the vertical frame.
+
+*Soundness of the implemented construction.* It uses t = ceil(2r/eps) and the bound t - floor(B/2) with
+B = floor(t s): for every rational s in [0,2), floor(B/2) <= ts/2, so t - floor(B/2) >= t eps / 2 >= r. Each
+level demands 2t strips from the level below (Maker-only, parallel, by induction). The verified configurations
+(k = 2: s = 1, 3/2 with r <= 2; k = 3: s = 0, 1 with r <= 2, s = 3/2 with r = 1) satisfy the arithmetic (e.g.
+s = 3/2, r = 1: t = 4, B = 6, 4 - 3 = 1) and were executed with every shipped policy; T1-T6 are enforced at run
+time and claims are re-verified exactly. Conditional parts: the search bound 2^-60 (typed failure otherwise) and
+the budget (k = 3, s = 3/2, r = 2 needs 500 points, refused by the default 400-point budget before execution).
 
 ## 7. Breaker policies (`policies.ts`) — heuristics, no optimality claim
 
@@ -178,7 +252,7 @@ targets. No minimax/MCTS.
 | M7 | apex gap starts at 0 (apex on the cone boundary) | **survived — equivalent**: the apex on the boundary line is collinear with two board points and `canAdd` rejects it, so the next gap is used |
 | M8 | pair top = max instead of min of the two cone sections | killed |
 | M9 | group slab restriction removed | **survived at first** (the first slab test had no far-left steep point); strengthened test (`z` far left); re-run: killed |
-| M10 | tilt accepts a Breaker point in two regions (`hits > 2`) | **survived**: the final claims are re-verified exactly, so the weakened search check cannot produce a false claim; it only weakens the counting guarantee, and no test constructs a tilt candidate with a double hit. Open gap. |
+| M10 | tilt accepts a Breaker point in two regions (`hits > 2`) | **killed** after the tilt conditions were made explicit (`tiltPointVerdict` is tested directly on overlapping regions; see section 6, Tilt conditions). The original gap was larger than the mutant: the acceptance did not distinguish earlier Breaker points from the phase's, and an earlier point inside a candidate was accepted (regression in `tests/kstrip/tilt.test.ts`). Variants M10a (`hits > 2`), M10b (cross-pair disjointness dropped), M10c (earlier Breaker points treated as phase points), M10d (earlier-point rule dropped): all killed. |
 | M11 | closed-form coefficient 5 -> 4 | killed |
 | M12 | bichromatic Breaker allowance +1 at m = 1 | killed |
 | M13 | harvest ignores liveness of the left region | killed |
@@ -186,7 +260,7 @@ targets. No minimax/MCTS.
 | M15 | ledger: boundary points no longer block liveness | **survived — equivalent in legal play** (after adoption no boundary point can exist; it matters only for hand-built ledgers) |
 | M16 | `isStrip` ignores boundary points | killed |
 
-Totals: 13 killed (12 at first run + M9 after strengthening), 3 survived (2 equivalent: M7, M15; 1 genuine gap: M10).
+Totals (re-run after the tilt change, M1-M16 plus M10a-d): 18 killed, 1 survived (M7, equivalent: the apex on the cone boundary is collinear with two board points and is rejected by general position, so the next gap is used). M9 and M15 are killed by the current suite (M15 was previously argued equivalent). Defect (d), found by the M10 audit: tilt acceptance did not exclude earlier Breaker points from candidate regions, so the reported survivor bound could exceed the strips delivered (fixed; regressions in `tests/kstrip/tilt.test.ts`, soundness grid in `tests/kstrip/ledger-soundness.test.ts`).
 Defects found while testing (each has a regression test in `tests/kstrip/regression.test.ts` or the oracle):
 (a) Breaker can put two points on the planned line l_j before p_j (legal: no third point yet), after
 which *no* point of l_j is in general position; the executor re-plans a free line in the same gap

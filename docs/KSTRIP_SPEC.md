@@ -223,3 +223,5 @@ independently rejects every spec/run that the mutated check would have rejected;
 Not covered by mutation testing: the kernel (`src/kstrip/*.ts`, 16 mutants recorded in `docs/KSTRIP.md` section 8), the
 lab rows (covered by the encoding tests), and `runner.ts` refactoring (covered by the 57 equivalence runs plus the existing
 `tests/kstrip` suite).
+
+Re-run after the tilt-acceptance change in the kernel (same mutant list): 64 killed, 8 survived (the same redundant checks listed above), 1 not applicable (the removed `eps` variable); no new survivor.

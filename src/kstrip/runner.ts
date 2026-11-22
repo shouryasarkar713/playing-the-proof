@@ -364,29 +364,92 @@ function validStripsFromChains(ctx: Ctx, chains: Pt[][]): Pt[][] {
 }
 
 // ---------------------------------------------------------------------------
-// Tilt (Theorem 5 / Observation 6): find delta so that, in the tilted frame,
-// all x are distinct, every candidate is a strict strip shape, the two
-// candidates of a pair meet exactly in the halfline below the apex, no Maker
-// point (other than vertices) is inside a candidate, and every Breaker point
-// lies in at most one closed region.
+// Tilt (Theorem 5 / Observation 6): find delta so that, in the tilted frame
+// (direction v = (delta, -1)), the following hold. They are exactly what the
+// counting argument uses: B Breaker points of the phase, each in at most one
+// closed candidate region, spoil at most B candidates, hence at most floor(B/2)
+// pairs.
+//   T1 all abscissae are distinct (no point lies on a v-line through another;
+//      in particular no Breaker point on the shared halfline below an apex);
+//   T2 every candidate is a strict cap;
+//   T3 the two candidates of a pair meet exactly in the halfline below the apex;
+//   T4 the closed regions of different pairs are disjoint (parallel);
+//   T5 no point on the board BEFORE Breaker's moves of this phase (Maker's
+//      points, Breaker's earlier points) other than the candidate's own
+//      vertices lies in a closed candidate region (Observation 6: the
+//      candidates are strips disjoint from S);
+//   T6 every Breaker point of this phase lies in at most one closed region.
+// T6 follows from T1, T3 and T4; it is kept as an explicit per-point rule
+// (tiltPointVerdict) because it is the statement the count rests on.
 
-interface TiltPair {
+export interface TiltPair {
   left: readonly Pt[];
   right: readonly Pt[];
   apex: Pt;
 }
 
-function acceptTilt(
-  ctx: Ctx,
+export type TiltPointVerdict =
+  | { readonly ok: true; readonly hits: number }
+  | { readonly ok: false; readonly reason: "old-point-in-candidate" | "breaker-in-two-regions"; readonly hits: number };
+
+// The per-point rule T5/T6 for one point q (tilted coordinates): "old" points
+// (everything on the board before this phase's Breaker moves) must be exterior
+// to every closed region except as a vertex; a phase Breaker point may lie in
+// at most one closed region.
+export function tiltPointVerdict(
+  regions: readonly StripRegion[],
+  q: Pt,
+  kind: "old" | "phase-breaker",
+): TiltPointVerdict {
+  let hits = 0;
+  for (const r of regions) {
+    if (r.vertices.some((v) => eqPt(v, q))) {
+      continue;
+    }
+    if (r.classify(q) !== "exterior") {
+      if (kind === "old") {
+        return { ok: false, reason: "old-point-in-candidate", hits: hits + 1 };
+      }
+      hits += 1;
+    }
+  }
+  if (hits > 1) {
+    return { ok: false, reason: "breaker-in-two-regions", hits };
+  }
+  return { ok: true, hits };
+}
+
+export type TiltCheck =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason:
+        | "shared-abscissa"
+        | "candidate-not-a-cap"
+        | "pair-interiors-overlap"
+        | "pair-not-sharing-halfline"
+        | "pairs-overlap"
+        | "old-point-in-candidate"
+        | "breaker-in-two-regions";
+    };
+
+// Pure check of T1-T6 for one delta. `points` is the whole board and
+// `phaseBreaker` the Breaker points of the phase, both in the pre-tilt frame.
+export function checkTilt(
+  points: readonly OwnedPoint[],
+  phaseBreaker: readonly Pt[],
   delta: Rat,
   pairs: readonly TiltPair[],
-): boolean {
-  const pts = ctx.fpts.map((o) => ({ p: shearPt(delta, o.pt), owner: o.owner }));
+): TiltCheck {
+  const pts = points.map((o) => ({
+    p: shearPt(delta, o.pt),
+    phase: o.owner === "breaker" && phaseBreaker.some((b) => eqPt(b, o.pt)),
+  }));
   const xs = new Set<string>();
   for (const q of pts) {
     const k = q.p.x.toString();
     if (xs.has(k)) {
-      return false;
+      return { ok: false, reason: "shared-abscissa" };
     }
     xs.add(k);
   }
@@ -395,35 +458,40 @@ function acceptTilt(
     const a = StripRegion.make([...pr.left, pr.apex].map((p) => shearPt(delta, p)), DOWN);
     const b = StripRegion.make([pr.apex, ...pr.right].map((p) => shearPt(delta, p)), DOWN);
     if (!a.ok || !b.ok) {
-      return false;
+      return { ok: false, reason: "candidate-not-a-cap" };
     }
     if (!interiorsDisjoint(a.region, b.region)) {
-      return false;
+      return { ok: false, reason: "pair-interiors-overlap" };
     }
     if (sharedHalfline(a.region, b.region) === null) {
-      return false;
+      return { ok: false, reason: "pair-not-sharing-halfline" };
     }
     regions.push(a.region, b.region);
   }
-  meter(ctx, pts.length * regions.length);
-  for (const q of pts) {
-    let hits = 0;
-    for (const r of regions) {
-      if (r.vertices.some((v) => eqPt(v, q.p))) {
-        continue;
+  for (let i = 0; i < regions.length; i += 1) {
+    for (let j = i + 1; j < regions.length; j += 1) {
+      if ((i >> 1) !== (j >> 1) && !parallel(regions[i] as StripRegion, regions[j] as StripRegion).ok) {
+        return { ok: false, reason: "pairs-overlap" };
       }
-      if (r.classify(q.p) !== "exterior") {
-        if (q.owner === "maker") {
-          return false;
-        }
-        hits += 1;
-      }
-    }
-    if (hits > 1) {
-      return false;
     }
   }
-  return true;
+  for (const q of pts) {
+    const v = tiltPointVerdict(regions, q.p, q.phase ? "phase-breaker" : "old");
+    if (!v.ok) {
+      return { ok: false, reason: v.reason };
+    }
+  }
+  return { ok: true };
+}
+
+function acceptTilt(
+  ctx: Ctx,
+  delta: Rat,
+  pairs: readonly TiltPair[],
+  phaseBreaker: readonly Pt[],
+): boolean {
+  meter(ctx, ctx.fpts.length * (2 * pairs.length + 1));
+  return checkTilt(ctx.fpts, phaseBreaker, delta, pairs).ok;
 }
 
 function applyTilt(ctx: Ctx, delta: Rat): void {
@@ -431,12 +499,12 @@ function applyTilt(ctx: Ctx, delta: Rat): void {
   ctx.fpts = ctx.fpts.map((o) => ({ pt: shearPt(delta, o.pt), owner: o.owner }));
 }
 
-function chooseAndApplyTilt(ctx: Ctx, pairs: readonly TiltPair[]): Rat {
+function chooseAndApplyTilt(ctx: Ctx, pairs: readonly TiltPair[], phaseBreaker: readonly Pt[]): Rat {
   for (let n = 1; n <= 60; n += 1) {
     const den = 1n << BigInt(n);
     for (const sg of [1n, -1n]) {
       const delta = Rat.make(sg, den);
-      if (acceptTilt(ctx, delta, pairs)) {
+      if (acceptTilt(ctx, delta, pairs, phaseBreaker)) {
         applyTilt(ctx, delta);
         return delta;
       }
@@ -605,7 +673,7 @@ export function pairingPhase(
       right: st.plan.right,
       apex: st.apex0,
     }));
-    const d = chooseAndApplyTilt(ctx, pairs);
+    const d = chooseAndApplyTilt(ctx, pairs, phasePts);
     tiltNote = d.toString();
     for (const st of states) {
       st.apex0 = shearPt(d, st.apex0);
@@ -998,7 +1066,7 @@ export function monoBaseLevel2(ctx: Ctx, need: bigint, rounds: bigint, s: bigint
 export function bichromaticBaseLevel1(ctx: Ctx, need: bigint, rounds: bigint): Pt[][] {
   traceBaseStart(ctx, 1, "bichromatic-base", need, rounds);
   basePhase(ctx, 1, rounds, "bichromatic-base");
-  const d = chooseAndApplyTilt(ctx, []);
+  const d = chooseAndApplyTilt(ctx, [], []);
   const chains = ctx.fpts.filter((o) => o.owner === "maker").map((o) => [o.pt]);
   const v = validStripsFromChains(ctx, chains);
   const rep1: LevelReport = {
