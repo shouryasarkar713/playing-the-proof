@@ -129,7 +129,7 @@
   --illegal: #a62b1e; /* forbidden ink (hatch) */
   --structure: #6e6552; /* auxiliary construction, warm slate */
   --gold: #a87e00; /* Byrne's yellow, as print ink */
-  --gold-ink: #241e15; /* text on gold fields */
+  --gold-ink: #0d0a05; /* text on gold fields (≥4.5:1) */
   --tag-mix: #000; /* small-tag text is mixed toward this for ≥4.5:1 */
 
   /* surfaces & ink — LIGHT (the desk, the plate, the paper) */
