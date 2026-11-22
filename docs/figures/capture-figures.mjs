@@ -1,6 +1,7 @@
-// capture.mjs - drives the production build of Playing the Proof with
-// system Chrome (puppeteer-core) and writes the report figures.
-// Usage: node capture.mjs [figure-id ...]   (env: PTP_URL, PTP_OUT, CHROME)
+// capture-figures.mjs - drives the production build of Playing the Proof with
+// system Chrome (puppeteer-core) and writes the report figures. Every PNG is a
+// plain screenshot (full viewport or a rectangular clip of it); nothing is edited.
+// Usage: node capture-figures.mjs [fig01 fig02 ...]   (env: PTP_URL, PTP_OUT, CHROME)
 import puppeteer from "puppeteer-core";
 import fs from "node:fs";
 import path from "node:path";
@@ -57,7 +58,12 @@ async function openKX(page, k, t) {
   await clickText(page, "Run"); await sleep(2800);
 }
 async function nextN(page, n) { for (let i = 0; i < n; i++) { await clickText(page, "Next"); await sleep(40); } await sleep(400); }
-async function shot(page, name) { await sleep(300); await page.screenshot({ path: path.join(OUT, name) }); console.log("wrote", name); }
+// clip = {x, y, width, height} in CSS px of the viewport
+async function shot(page, name, clip) {
+  await sleep(300); await page.screenshot({ path: path.join(OUT, name), ...(clip ? { clip } : {}) }); console.log("wrote", name);
+}
+const PANEL_CLIP = { x: 860, y: 66, width: 412, height: 730 }; // right-hand panel column at 1280x800
+const BOARD_CLIP = { x: 12, y: 66, width: 844, height: 726 };  // the board at 1280x800
 
 const figs = {
   async fig01() {
@@ -65,7 +71,8 @@ const figs = {
       const { browser, page } = await open();
       await startProof(page, 1);
       await clickText(page, "Next"); await sleep(500);
-      await page.keyboard.press("c"); await sleep(300);
+      await clickText(page, "Play k5:b2:one-interior"); await sleep(700); // k5:r3:classify, invariant populated
+      await page.mouse.move(1100, 760);
       if (dark) { await page.click("#theme-toggle"); await sleep(400); }
       await shot(page, dark ? "fig01-proof-k5-dark.png" : "fig01-proof-k5.png");
       await browser.close();
@@ -73,19 +80,18 @@ const figs = {
   },
   async fig02() {
     const { browser, page } = await open(); await startProof(page, 2);
-    await clickText(page, "Next"); await sleep(600); await shot(page, "fig02-proof-k6-twins.png"); await browser.close();
+    await clickText(page, "Next"); await sleep(600); await shot(page, "fig02-proof-k6-twins.png", BOARD_CLIP); await browser.close();
   },
   async fig03() {
     const { browser, page } = await open(); await startProof(page, 3);
     await sleep(500); await shot(page, "fig03-k7.png"); await browser.close();
   },
-  async fig04() { // k=8 guided walkthrough (Proof mode, esmb-k8): B0 and B1 are placed by clicking the board
+  async fig04() { // k=8 guided walkthrough: B0 and B1 are placed by clicking the board
     const { browser, page } = await open();
     const rows = await page.evaluate(() => [...document.querySelectorAll(`.mode-card:nth-child(1) .strategy-row`)].map((r) => r.innerText));
     const row = rows.findIndex((t) => t.includes("esmb-k8")) + 1;
     if (row === 0) throw new Error("esmb-k8 not offered");
     await startProof(page, row);
-    // screen centres of p1..pN, matched through the on-board labels
     const pts = () => page.evaluate(() => {
       const els = [...document.querySelectorAll("#board .pt")].map((e) => { const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; });
       const out = {};
@@ -99,14 +105,12 @@ const figs = {
     });
     const cen = (a) => [a.reduce((s, p) => s + p[0], 0) / a.length, a.reduce((s, p) => s + p[1], 0) / a.length];
     const P = await pts();
-    // B0 = centroid of heptagon vertices p1, p3, p5, p6 (inside the chord-pair region)
-    const [bx, by] = cen([P[0], P[2], P[4], P[5]]);
+    const [bx, by] = cen([P[0], P[2], P[4], P[5]]); // B0 = centroid of p1, p3, p5, p6
     await clickBoard(page, bx, by); await sleep(500);
     await page.mouse.move(1100, 700);
     await shot(page, "fig04-k8.png");
-    // B1 = centroid of the shared triangle (B0 = p8, A1 = p9, p6)
     const P2 = await pts();
-    const [cx, cy] = cen([P2[7], P2[8], P2[5]]);
+    const [cx, cy] = cen([P2[7], P2[8], P2[5]]); // B1 = centroid of the shared triangle (p8, p9, p6)
     await clickBoard(page, cx, cy); await page.mouse.move(1100, 700); await sleep(500);
     await shot(page, "fig04c-k8-7hole.png");
     await clickText(page, "Play k8:b2:inside-seven"); await sleep(900);
@@ -119,8 +123,8 @@ const figs = {
   },
   async fig06() {
     const { browser, page } = await open(); await openKX(page, 3, 1);
-    await nextN(page, 11); // Step 12: Maker places the extension point p_1 (two candidates R1, R2 now exist)
-    await page.select("#kx-unit-sel", "1"); await sleep(300);
+    await nextN(page, 13); // step 14: Maker places the extension point p_2; candidates R3, R4 of unit 2 exist
+    await page.select("#kx-unit-sel", "2"); await sleep(300);
     await page.evaluate(() => { for (const id of ["kx-cone-plus", "kx-cone-minus"]) { const c = document.getElementById(id); if (!c.checked) c.click(); } }); await sleep(500);
     await scrollTo(page, "kx-inspect"); await shot(page, "fig06-kstrip-pairing.png"); await browser.close();
   },
@@ -132,8 +136,8 @@ const figs = {
       await page.type("#kx-break-x", x); await page.type("#kx-break-y", y); await sleep(300);
       await page.click("#kx-break-place"); await sleep(600);
     }
-    await sleep(5000); // let the toasts expire
-    await scrollTo(page, "kx-break"); await shot(page, "fig07-break-ledger.png"); await browser.close();
+    await sleep(6000); // let the toasts expire
+    await scrollTo(page, "kx-break"); await shot(page, "fig07-break-ledger.png", PANEL_CLIP); await browser.close();
   },
   async fig08() {
     const cfgs = [
@@ -146,7 +150,7 @@ const figs = {
       await clickText(page, "Open", { within: card(4) }); await sleep(600);
       await setField(page, "#lab-model", m); await setField(page, "#lab-rule", r);
       await setField(page, "#lab-k", k); await setField(page, "#lab-bias", b); await sleep(600);
-      await scrollTo(page, "lab-result"); await shot(page, file); await browser.close();
+      await scrollTo(page, "lab-result"); await shot(page, file, PANEL_CLIP); await browser.close();
     }
   },
   async fig09() {
@@ -158,7 +162,7 @@ const figs = {
     await clickText(page, "Breaker", { within: "#sandbox-controls" }); await sleep(300);
     for (const [x, y] of [[600, 600], [820, 590], [640, 780], [820, 760]]) await clickBoard(page, x * 0.64, y * 0.64);
     await page.mouse.move(1000, 700); await clickText(page, "hole ▶"); await sleep(800);
-    await shot(page, "fig09-bichromatic.png"); await browser.close();
+    await shot(page, "fig09-bichromatic.png", BOARD_CLIP); await browser.close();
   },
   async fig10() {
     const { browser, page } = await open();
@@ -179,8 +183,25 @@ const figs = {
     await shot(page, "fig12-mobile-375-entry.png");
     await clickText(page, "Open", { within: card(5) }); await sleep(400);
     await setField(page, "#kx-k", 3); await setField(page, "#kx-t", 1);
-    await clickText(page, "Run"); await sleep(2800); await nextN(page, 11);
+    await clickText(page, "Run"); await sleep(2800); await nextN(page, 13);
+    await page.select("#kx-unit-sel", "2"); await sleep(400);
     await shot(page, "fig12-mobile-375.png"); await browser.close();
+  },
+  async fig13() { // k=8 Proof mode: the "Reply classes" panel with Interactive / Guided / Not encoded labels
+    const { browser, page } = await open();
+    const rows = await page.evaluate(() => [...document.querySelectorAll(`.mode-card:nth-child(1) .strategy-row`)].map((r) => r.innerText));
+    await startProof(page, rows.findIndex((t) => t.includes("esmb-k8")) + 1);
+    await scrollTo(page, "panel-branches"); await shot(page, "fig13-branch-labels.png"); await browser.close();
+  },
+  async fig14() { // Sandbox with bias 1:2 applied, one Maker point placed by clicking the board
+    const { browser, page } = await open();
+    await clickText(page, "Start", { within: card(3) }); await sleep(600);
+    await setField(page, "#sandbox-bias-input", "2"); await clickText(page, "Set bias"); await sleep(800);
+    await clickBoard(page, 400, 400);
+    await clickBoard(page, 520, 300);
+    await page.mouse.move(1100, 760);
+    await scrollTo(page, "sandbox-bias");
+    await shot(page, "fig14-sandbox-bias.png"); await browser.close();
   },
 };
 

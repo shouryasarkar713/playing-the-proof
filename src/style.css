@@ -130,6 +130,7 @@
   --structure: #6e6552; /* auxiliary construction, warm slate */
   --gold: #a87e00; /* Byrne's yellow, as print ink */
   --gold-ink: #241e15; /* text on gold fields */
+  --tag-mix: #000; /* small-tag text is mixed toward this for ≥4.5:1 */
 
   /* surfaces & ink — LIGHT (the desk, the plate, the paper) */
   --bg-app: #f2ecdf; /* the desk */
@@ -186,6 +187,7 @@
   --structure: #8a93ab;
   --gold: #d9b45c;
   --gold-ink: #10141f;
+  --tag-mix: #fff;
 
   --bg-app: #0c1018; /* the night */
   --bg-board: #121724; /* the board: deep navy */
@@ -700,19 +702,19 @@ input {
   opacity: 0.65;
 }
 .tier-verified-geometry {
-  color: var(--verify);
+  color: color-mix(in srgb, var(--verify) 76%, var(--tag-mix));
 }
 .tier-strategy-rule {
-  color: var(--breaker);
+  color: color-mix(in srgb, var(--breaker) 76%, var(--tag-mix));
 }
 .tier-theorem-cited {
-  color: var(--protected);
+  color: color-mix(in srgb, var(--protected) 76%, var(--tag-mix));
 }
 .tier-observed {
-  color: var(--maker);
+  color: color-mix(in srgb, var(--maker) 76%, var(--tag-mix));
 }
 .tier-uncovered {
-  color: var(--illegal);
+  color: color-mix(in srgb, var(--illegal) 76%, var(--tag-mix));
 }
 
 .status-badge {
@@ -736,7 +738,7 @@ input {
 }
 .status-badge[title*="validated"],
 .status-badge[title*="verified"] {
-  color: var(--verify);
+  color: color-mix(in srgb, var(--verify) 76%, var(--tag-mix));
 }
 
 #panel-branches ul {
@@ -749,13 +751,13 @@ input {
   font-size: 12px;
 }
 .branch-tag.branch-interactive {
-  color: var(--verify);
+  color: color-mix(in srgb, var(--verify) 76%, var(--tag-mix));
 }
 .branch-tag.branch-guided {
-  color: var(--gold);
+  color: color-mix(in srgb, var(--gold) 70%, var(--tag-mix));
 }
 .branch-tag.branch-unverified {
-  color: var(--illegal);
+  color: color-mix(in srgb, var(--illegal) 76%, var(--tag-mix));
 }
 
 .ref {
@@ -2235,13 +2237,13 @@ body:has(.win-card) .pt-maker {
   padding: 2px 7px;
 }
 .lab-badge[data-status="THEOREM_BACKED"] {
-  color: var(--verify);
+  color: color-mix(in srgb, var(--verify) 76%, var(--tag-mix));
 }
 .lab-badge[data-status="EXPERIMENTAL"] {
-  color: var(--gold);
+  color: color-mix(in srgb, var(--gold) 70%, var(--tag-mix));
 }
 .lab-badge[data-status="NOT_COVERED"] {
-  color: var(--illegal);
+  color: color-mix(in srgb, var(--illegal) 76%, var(--tag-mix));
 }
 .lab-obs {
   border-left: 3px solid var(--line-2);
