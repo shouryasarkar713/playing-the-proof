@@ -180,9 +180,7 @@ evidence, not a proof for all heptagons.
 
 ### 5.3 Deeper steps (scope: the preset heptagon; oracle-confirmed leaves)
 
-The strided deep-path driver (`tests/slow/k8-deep.test.ts`: B0 cells, every third B1 cell,
-strided B2/B3 cells, B4 probes, oracle on every maker-won leaf) was started but did not finish within
-the time available, so it contributes no evidence; the entries below are the results that were obtained.
+A strided deep-path run (B0 cells, every third B1 cell, strided B2/B3 cells, B4 probes, oracle on every maker-won leaf) was started but did not finish in the time available, so it is not part of the repository and contributes no evidence; the entries below are the results that were obtained.
 
 * Engine tour (B0 = centroid(A,C,E,F), B1 = centroid of the shared triangle, B2 = centroid of
   three X vertices): A1…A3 placed with all post-conditions passing; B3 sampled over 1/25 of the exact
