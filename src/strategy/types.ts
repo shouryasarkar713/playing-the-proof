@@ -83,7 +83,7 @@ export type MoveSpec =
   // new point is an exact hole (|list|+1 vertices) and, with `meet`, the first
   // two such holes meet exactly in a convex `meet`-gon. Options are tried in
   // order (first success wins).
-  | { kind: "escape-edge-accept"; options: readonly EscapeEdgeOption[] }
+  | { kind: "escape-edge-accept"; options: readonly EscapeEdgeOption[]; exactAnchor?: VarName }
   // forcing-pair (Lemma 9 A3): a point just outside an edge of the 7-hole
   // `ring`, accepted when two 6-holes through it meet exactly in a triangle and
   // neither has all three `chain` vertices consecutive.
@@ -423,7 +423,7 @@ export type MoveSpecJSON =
       anchor: VarName;
       halves: readonly [PolyRef, PolyRef];
     }
-  | { kind: "escape-edge-accept"; options: readonly EscapeEdgeOption[] }
+  | { kind: "escape-edge-accept"; options: readonly EscapeEdgeOption[]; exactAnchor?: VarName }
   | { kind: "forcing-pair"; ring: PolyRef; chain: readonly [VarName, VarName, VarName] }
   | { kind: "double-extend"; holeSize: number };
 

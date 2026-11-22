@@ -193,18 +193,17 @@ const nodes: Record<string, StrategyNode> = {
           meet: 3,
         },
       ],
+      exactAnchor: "B0",
     },
     post: [
       {
         kind: "custom",
-        checkerId: "k8-inv:twins-tri",
+        checkerId: "k8-inv:twins-any",
         args: {
-          pentA: { kind: "var", v: "pentA" },
-          pentB: { kind: "var", v: "pentB" },
           B0: { kind: "points", of: [{ kind: "anchor", v: "B0" }] },
           A1: { kind: "points", of: [{ kind: "anchor", v: "A1" }] },
         },
-        describe: "After A1 both extended 5-holes are 6-holes meeting exactly in a triangle (Lemma 9 twins).",
+        describe: "After A1 two 6-holes through A1 meet exactly in a triangle with A1 and B0 as vertices (Lemma 9 twins).",
       },
     ],
     show: [

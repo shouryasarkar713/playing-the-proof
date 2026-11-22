@@ -9,7 +9,9 @@ import type { RegionValue } from "../geometry/poly.ts";
 import { hull } from "../geometry/hull.ts";
 import { twinSharedTriangle } from "../geometry/twins.ts";
 import { ccwIds, twinQuadEars, twinSharedPart } from "../geometry/twinsK7.ts";
-import { interiorsDisjoint } from "../geometry/twinsK8.ts";
+import { interiorsDisjoint, twinTriangleEars } from "../geometry/twinsK8.ts";
+import { arrangementCells } from "../geometry/arrangement.ts";
+import { canonicalInteriorPoint } from "../geometry/poly.ts";
 import {
   estimateHoleWork,
   findKHoles,
@@ -660,6 +662,7 @@ export function evalMoveSpec(
       // hole (and, with `meet`, the first two meet exactly in a convex part).
       const newId = `p${state.points.length + 1}`;
       const placedPts = state.points.map((p) => p.pt);
+      const fallbacks: Array<{ accept: (c: Pt) => boolean; anchor: Pt }> = [];
       for (const opt of moveSpec.options) {
         const edgeIds = lookupVar(state, opt.edge.v);
         const ringIds = lookupVar(state, opt.ring.v);
@@ -718,9 +721,77 @@ export function evalMoveSpec(
           }
           return true;
         };
-        const near = escapeNearEdge(u, v, prev, next, placedPts, window, accept);
-        if (near.ok) {
-          return { pt: near.point };
+        // The near-edge halving schedule is only a fast path: it is given a small
+        // evaluation budget and then yields to the exact cell search below.
+        let evals = 0;
+        const budgeted = (cand: Pt): boolean => {
+          evals += 1;
+          if (evals > HALVING_EVALS) {
+            throw new HalvingBudget();
+          }
+          return accept(cand);
+        };
+        try {
+          const near = escapeNearEdge(u, v, prev, next, placedPts, window, budgeted);
+          if (near.ok) {
+            return { pt: near.point };
+          }
+        } catch (e) {
+          if (!(e instanceof HalvingBudget)) {
+            throw e;
+          }
+        }
+        fallbacks.push({
+          accept,
+          anchor: pt(u.x.add(v.x).div(Rat.make(2n)), u.y.add(v.y).div(Rat.make(2n))),
+        });
+      }
+      // Exact fallback. Every acceptance predicate above depends only on the
+      // orientation of the new point with respect to the lines through pairs of
+      // the placed points, so it is constant on the cells of that arrangement:
+      // one representative per cell decides, over the whole plane, whether an
+      // admissible point exists (the halving schedule above only samples a thin
+      // neighbourhood of the edge). Cells are tried nearest-first to the edge.
+      const first = fallbacks[0];
+      if (first === undefined) {
+        return null;
+      }
+      const reps = cellCandidates(placedPts, window, first.anchor).filter(
+        (c) => checkPlacement(state, c, config.window) === null,
+      );
+      for (const f of fallbacks) {
+        for (const c of reps) {
+          if (f.accept(c)) {
+            return { pt: c };
+          }
+        }
+      }
+      if (moveSpec.exactAnchor !== undefined) {
+        const b0 = lookupVar(state, moveSpec.exactAnchor);
+        if (typeof b0 === "string") {
+          for (const c of reps) {
+            const ids: IdPt[] = [
+              ...idPtsOf(state),
+              { id: newId, pt: c },
+            ];
+            const ptOf = (id: string): Pt | null =>
+              ids.find((q) => q.id === id)?.pt ?? null;
+            const news = findNewKHoles(ids, 6, newId).holes;
+            for (let i = 0; i < news.length; i += 1) {
+              for (let j = i + 1; j < news.length; j += 1) {
+                if (
+                  twinTriangleEars(
+                    (news[i] as KHole).verts,
+                    (news[j] as KHole).verts,
+                    [newId, b0],
+                    ptOf,
+                  ) !== null
+                ) {
+                  return { pt: c };
+                }
+              }
+            }
+          }
         }
       }
       return null;
@@ -1016,6 +1087,46 @@ export function evalMoveSpec(
       return fb.ok ? { pt: fb.point } : null;
     }
   }
+}
+
+// Acceptance evaluations granted to the near-edge halving fast path before the
+// exact cell search takes over.
+const HALVING_EVALS = 400;
+
+class HalvingBudget extends Error {
+  constructor() {
+    super("halving budget exhausted");
+    this.name = "HalvingBudget";
+  }
+}
+
+// One exact interior representative per cell of the arrangement of all lines
+// through pairs of `placed`, restricted to the window, ordered by squared
+// distance to `near` (ties keep the arrangement's deterministic order).
+function cellCandidates(placed: readonly Pt[], window: Window, near: Pt): Pt[] {
+  const lines: Array<{ a: Pt; b: Pt }> = [];
+  for (let i = 0; i < placed.length; i += 1) {
+    for (let j = i + 1; j < placed.length; j += 1) {
+      lines.push({ a: placed[i] as Pt, b: placed[j] as Pt });
+    }
+  }
+  const cells = arrangementCells(lines, [
+    pt(window.minX, window.minY),
+    pt(window.maxX, window.minY),
+    pt(window.maxX, window.maxY),
+    pt(window.minX, window.maxY),
+  ]);
+  const reps: Array<{ p: Pt; d: Rat; i: number }> = [];
+  cells.forEach((cell, i) => {
+    const p = canonicalInteriorPoint(cell);
+    if (p !== null) {
+      const dx = p.x.sub(near.x);
+      const dy = p.y.sub(near.y);
+      reps.push({ p, d: dx.mul(dx).add(dy.mul(dy)), i });
+    }
+  });
+  reps.sort((a, b) => a.d.cmp(b.d) || a.i - b.i);
+  return reps.map((r) => r.p);
 }
 
 function varHole(state: GameState, v: string): KHole[] | null {

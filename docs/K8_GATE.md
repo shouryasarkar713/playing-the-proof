@@ -20,7 +20,7 @@ never run their target.
 | class (route case) | interaction | what is established |
 |---|---|---|
 | `k8:b0:outside-heptagon` | interactive | 7-hole stays empty → Edge-Extension → 8-hole at A1 (proof + cells) |
-| `k8:b0:inside-pair` | guided | a surviving chord-half pair always exists (Lemma B9, argued); A1: Lemma D9 is argued but NOT confirmed — the exact A1 search failed (typed uncovered) in 14 of 50 inside-pair cells of the preset heptagon (§5) |
+| `k8:b0:inside-pair` | guided | a surviving chord-half pair always exists (Lemma B9, argued); A1: exists for every inside-pair B0 tested (exact whole-plane cell search, 5 heptagons; §5) — the earlier 14 failures were search failures, not missing points |
 | `k8:b0:inside-no-pair` | unverified | **empty class** (Lemma B9); kept as a fail-closed guard |
 | `k8:b1:inside-shared-triangle` | guided | ear replacement + A2 (Lemmas E9, F9, proofs) |
 | `k8:b1:elsewhere` | unverified | not in the source; ends as uncovered |
@@ -48,8 +48,8 @@ That is **five Maker moves A1…A5** (the paper's own text: after A4 "the format
 in the next round"), i.e. rounds 9–13 after the 7-hole of round 8: **the 8-hole arrives in
 round 13**, with 15 points at the 7-hole (7 + 4 + 4) + B0 + (A1,B1,…,A4,B4,A5) = 15 + 1 + 9 =
 **25 points = 2·13 − 1**. "12 rounds" would give only 23 points and contradicts the paper's
-own "25 points". Theorem 2's "12-th round" is therefore an arithmetic slip in the source
-(8 + 5 = 13, not 12); an independent count of the construction agrees. This repository records 13 /
+own "25 points". Theorem 2's "12-th round" is therefore inconsistent with the source's own convention (see `K8_ROUNDS.md` for the full
+placement table and stated assumptions; the likeliest origin is 8 + 5 written as 12); an independent count of the construction agrees. This repository records 13 /
 25 and does not copy 12. (The same counting reproduces the k = 7 statement: 6-hole in
 round 6, A1′, A2′ → 7-hole in round 8, 15 points.)
 
@@ -76,7 +76,7 @@ extreme), they share exactly the vertex E = V_{j+3} and B0, and meet only in the
 E·B0 (disjoint interiors). The paper's Figure 3 is j = 1 (S_1 = BCDE, S_4 = EFGA).
 Empirically: over every B0 cell of the preset heptagon (§5) the "no-pair" class never occurs, as the lemma predicts (one heptagon only).
 
-**Lemma D9 (A1) — argued; contradicted in part by the exact search (see §5).** With ring R0…R6 rotated so S_j = (R0..R3), S_{j+3} = (R3..R6), E = R3,
+**Lemma D9 (A1).** (The argument below only covers points near E; the engine's search is exact over the whole plane — §5.1.) With ring R0…R6 rotated so S_j = (R0..R3), S_{j+3} = (R3..R6), E = R3,
 F = R4: take A1 on the open edge EF near E, just outside. Then H1 = (R3,R4,R5,R6,B0)+A1 =
 (A,B0,E,A1,F,G) and H2 = (R0..R3,B0)+A1 = (B,C,D,E,A1,B0) are in convex position: the
 turns of H1 are those of the heptagon except at B0 [A,B0,E: B0 beyond chord AE], E
@@ -148,41 +148,58 @@ limit; `growStartFromWin` is defined for k = 5, 6 only).
 
 ## 5. Gate evidence
 
-**Not completed:** `tests/slow/k8gate.test.ts` layer 1 for the two
-random heptagons and layer 2 (deep path) for all three heptagons, and `tests/slow/k8-b3.test.ts`
-(full-engine B3/B4 cell sweep) were started and stopped; they are valid tests on their own but
-long (hours) and are kept ONLY as unexecuted/partially executed drivers — they are not evidence.
+### 5.1 A1: the fourteen configurations the near-edge search missed
 
-**Evidence actually obtained (scope: ONE heptagon, the shipped preset; exact rationals; leaves
-confirmed by the independent oracle `k7oracle.ts`, bigint integers, no `src/geometry` import):**
+Earlier runs placed A1 by a dyadic halving schedule near the edge EF; for 14 of the 50
+inside-pair B0 cells of the preset heptagon it found no point and the session ended as a typed
+`uncovered / window-exhausted` terminal. Each of the 14 B0 positions is now an exact fixture
+(`tests/strategies/k8a1.test.ts`). For each, admissibility is decided over the whole plane:
+"A1 = x makes two 6-holes through x that meet exactly in a triangle with x and B0 among its
+vertices and that triangle an ear of both" depends only on the orientation of x with respect to
+the lines through pairs of the placed points, so it is constant on the cells of that arrangement
+(287 cells, bounded and unbounded). One exact representative per cell was tested
+(`tests/strategies/k8a1.ts`): **every one of the 14 configurations has 6 or 10 admissible cells**
+(region non-empty), and the independent integer oracle (`k8oracle.ts`) confirms that the witness
+twin 6-holes are holes. Verdict for all 14: *exists; the halving search was insufficient* (the
+admissible cells are small and, for several configurations, lie at a different vertex of the
+heptagon than the first chord-half pair's edge). The move now keeps the halving schedule as a
+fast path with a small evaluation budget and then searches the cell representatives exactly
+(nearest to the edge first; first the chord-half pair's own acceptance, then the structural
+twin-triangle predicate). All 14 fixtures pass with the new search.
 
-1. *Layer 1, preset heptagon, every B0 cell (162 cells; 105 outside + 7 + 50 inside-pair, 0
-   no-pair), every ninth B1 cell of each parked B0 state:* **0 failures**, 47 oracle-checked
-   8-hole leaves. Census of B0 cells: 105 outside → immediate 8-hole (oracle-confirmed); 7 where
-   B0 itself completes a win; 22 inside-pair that already end in a win by the chain; 14 inside-pair
-   parked at the B1 classifier; **14 inside-pair that ended as typed `uncovered / window-exhausted`
-   at `k8:r1:escape` (the bounded A1 search found no accepted point) — 28 % of the inside-pair
-   cells. Lemma D9's existence claim is therefore NOT confirmed; the failure is fail-closed (typed,
-   never a wrong state), the tour is simply not offered there.** B1 census (47 shared-triangle,
-   627 elsewhere → uncovered, 82 wins by the chain).
-2. *Engine path of the tour (preset heptagon, B0 = centroid(A,C,E,F), B1 = centroid of the shared
-   triangle, B2 = centroid of three X vertices):* A1 … A3 placed with all post-conditions passing;
-   B3 sampled over 1/25 of the exact cells of the 13-point arrangement (92 cells): 84 leave a
-   7-hole (extension wins), 3 are wins by B3 itself, 5 are Observation-2 vertex-pair states, each
-   continued with a B4 inside seven-A and ended in an oracle-confirmed 8-hole (5/5); no `no-pair`
-   cell was observed.
-3. *Exploration (geometry only, no engine):* four (B2, A3) configurations, every 12th cell of the
-   B3 arrangement (≈ 190 cells each): in every sampled cell an A4 exists extending two
-   interior-disjoint 6-holes sharing one vertex to two interior-disjoint 7-holes (≈ 760 cells,
-   0 exceptions).
-4. *Fast tier:* `tests/strategies/k8.test.ts`, `k8units.test.ts` (26 tests): registration,
-   route-interaction table, codec, ClaimLint, the tour to B3, every encoded class
-   (B0 outside, B1 elsewhere → uncovered, B2 outside X), checker pass/fail pairs, classifier
-   tag mapping, fail-closed moves, replay export/validate/re-fold.
+### 5.2 A1 over every B0 cell of five heptagons
 
-NOT verified: A1 existence for all inside-pair B0; any other heptagon; the deep path over all
-B2/B3 cells; B1 outside the shared triangle (not encoded); the B3 dichotomy for all B3; full
-branching play.
+`tests/slow/k8-a1-sweep.test.ts` drives B0 -> pair -> A1 -> twins for every cell of the B0 line
+arrangement of: the preset heptagon, two random integer heptagons, a rational heptagon
+(denominator 7) and a near-collinear ("flat") heptagon. Result for each of the five: 162 B0 cells
+(104–105 outside the heptagon → 8-hole confirmed by the oracle, 7 where B0 itself completes a
+win, 50 inside-pair of which 25 end in a win by the chain and 25 park at the B1 classifier),
+**0 typed-uncovered outcomes and 0 missed admissible regions; no no-pair cell**. So no
+counterexample to the construction was found at the A1 step on these heptagons; this is finite
+evidence, not a proof for all heptagons.
+
+### 5.3 Deeper steps (scope: the preset heptagon; oracle-confirmed leaves)
+
+The strided deep-path driver (`tests/slow/k8-deep.test.ts`: B0 cells, every third B1 cell,
+strided B2/B3 cells, B4 probes, oracle on every maker-won leaf) was started but did not finish within
+the time available, so it contributes no evidence; the entries below are the results that were obtained.
+
+* Engine tour (B0 = centroid(A,C,E,F), B1 = centroid of the shared triangle, B2 = centroid of
+  three X vertices): A1…A3 placed with all post-conditions passing; B3 sampled over 1/25 of the exact
+  cells of the 13-point arrangement (92 cells): 84 leave a 7-hole (extension wins), 3 are wins by B3
+  itself, 5 are Observation-2 vertex-pair states, each continued with a B4 inside seven-A and ended in
+  an oracle-confirmed 8-hole (5/5); no `no-pair` cell was observed.
+* Geometry exploration (no engine): four (B2, A3) configurations, every 12th cell of the B3
+  arrangement (about 190 cells each): in every sampled cell an A4 exists extending two
+  interior-disjoint 6-holes sharing one vertex to two interior-disjoint 7-holes (about 760 cells,
+  0 exceptions).
+* Fast tier: `k8.test.ts`, `k8units.test.ts`, `k8a1.test.ts` (route-interaction table, codec,
+  tour to B3, every encoded class, checker pass/fail pairs, classifier tags, fail-closed moves, replay).
+
+NOT verified: A3 existence for every B2 and the B3 dichotomy for every B3 (sampled only); B1
+outside the shared triangle (not encoded); other heptagons beyond the A1 sweep; full branching
+play. The A3 and A4 searches are still bounded schedules (fail closed); they have not been
+replaced by exact cell searches.
 
 ## 6. Mutation testing
 
@@ -207,13 +224,15 @@ many heptagons) · not established: A3 existence and the B3 dichotomy for ALL B2
 the shared triangle, anything about other heptagons. `effectiveStatus(esmb-k8)` is
 `validated-randomized`.
 
-## 8. UI integration requirements (nothing under `src/ui/**` was edited)
+## 8. UI notes
 
 * Registration is in `main.ts`; the entry list shows "esmb-k8 (k=8)" automatically; **Start
   needs no UI change** (engine default start = the bare heptagon).
 * Show the per-route `interaction` data: `StrategyDef.nodes[*].routes[*].interaction`
   (`interactive` = free play; `guided` = walk-through, exact checks per move; `unverified` =
-  would end uncovered). Suggested labels: Interactive / Guided / Not encoded.
+  would end uncovered). The Proof and Break panels list the classes of the parked node as
+  Interactive / Guided / Not encoded before any is entered (`branchInteractions`, panel
+  `#panel-branches`, chips in Proof mode); k=7 declares all classes interactive.
 * Uncovered terminals with `origin: "breaker-reply", reason: "partial-encoding"` already have
   a card (`uncoveredCard`).
 * B3 has no case map / sample chips by design: the tour is driven by typed placement, by

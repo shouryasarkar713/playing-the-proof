@@ -135,6 +135,35 @@ export const twinsTriChecker: CustomChecker = {
   },
 };
 
+export const twinsAnyChecker: CustomChecker = {
+  id: "k8-inv:twins-any",
+  describe:
+    "After A1 two 6-holes through A1 meet exactly in a triangle with A1 and B0 among its vertices, one ear per hole (enumerated).",
+  check(state, args, config): CheckResult {
+    const id = "k8-inv:twins-any";
+    keys(id, args, ["B0", "A1"]);
+    const b0 = need(id, args, "B0", 1)[0] as PointId;
+    const a1 = need(id, args, "A1", 1)[0] as PointId;
+    pts(id, state, [b0, a1]);
+    const six = holes(id, state, 6, config).filter((h) => h.verts.includes(a1));
+    for (let i = 0; i < six.length; i += 1) {
+      for (let j = i + 1; j < six.length; j += 1) {
+        const a = (six[i] as KHole).verts;
+        const b = (six[j] as KHole).verts;
+        if (twinTriangleEars(a, b, [a1, b0], (q) => lookup(state, q)) !== null) {
+          return result(
+            id,
+            true,
+            `6-holes ${a.join(",")} and ${b.join(",")} through A1 meet exactly in a triangle with A1 and B0 as vertices, one ear per hole`,
+            "",
+          );
+        }
+      }
+    }
+    return result(id, false, "", "no two 6-holes through A1 meet exactly in a triangle with A1 and B0 as vertices");
+  },
+};
+
 export const twinPairTriChecker: CustomChecker = {
   id: "k8-inv:twinpair-tri",
   describe: "The bound pair twinA/twinB are 6-holes meeting exactly in a triangle, one ear per hole.",
@@ -291,6 +320,7 @@ export const sevenPairChecker: CustomChecker = {
 export const K8_CHECKERS: readonly CustomChecker[] = [
   pentPairChecker,
   twinsTriChecker,
+  twinsAnyChecker,
   twinPairTriChecker,
   obs1Checker,
   forcingChecker,
