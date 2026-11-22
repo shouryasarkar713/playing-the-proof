@@ -4,6 +4,8 @@
 
 Scientific Visualization course project by Shourya Sarkar (instructor: Raghavendra GS), November 2026.
 
+Live application: https://playing-the-proof.pages.dev/
+
 Repository: https://github.com/shouryasarkar713/playing-the-proof
 
 *The game is the medium; the geometric proof is the subject.*
