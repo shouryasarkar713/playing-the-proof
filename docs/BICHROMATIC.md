@@ -61,25 +61,24 @@ and the Parameter Laboratory present the bichromatic strategy through their own 
 * Tampering with `gameMode` changes the folded state hash and is caught by the
   hash chain.
 
-## What is and is not supported
+## Support per surface
 
-Supported: sandbox sessions under the bichromatic rule (win analysis note when a
-Maker-only empty k-hole exists; none from Breaker placements); guided sessions
-for defs that declare `gameModes` (the tests use a three-Maker-point k = 3
-construction); typed validation of witnesses; integrity (I6); replay v3
-round-trip/validate; explanations.
+| Surface | Bichromatic | Notes |
+| --- | --- | --- |
+| Sandbox | yes | Rule toggle starts a fresh session with `gameMode`; hole analysis, count-all-k and the diagnostics line use the Maker-only rule; export/import/autosave use format v3 (v4 together with a bias). The Overmars-29 preset is disabled (its facts are monochromatic). |
+| Hole detection (`findWinHoles`, `analyzeWinHoles`, `findNewWinHoles`, `checkWinningHole`) | yes | Ownership-aware kernel in `geometry/ownedholes.ts`; monochromatic calls take the unrestricted search. |
+| k-strip executor / explorer | yes, only the verified configurations | Bichromatic Theorem 5 constructions listed in `docs/KSTRIP.md` (`kstrip-bichromatic`: `verified-guided`); other parameters are uncovered. |
+| Parameter Lab | classification and simulation | Classifier covers both rules; the simulation uses the ownership-aware detector with simple policies (observation only). |
+| Proof mode (esmb-k5, esmb-k6, k7, k8 walkthrough) | **no** | These are monochromatic Das–Valla constructions; `initSession` refuses a bichromatic guided session unless the def declares `gameModes`, and none does. |
+| Break-the-Proof | **no** | Same strategies, same refusal. |
 
-Not supported / not claimed:
+Also supported: guided sessions for test defs that declare `gameModes` (a
+three-Maker-point k = 3 construction in the tests), typed witness validation,
+integrity rule I6, replay v3 round trip and validation, wording.
 
-* No shipped strategy (esmb-k5, esmb-k6, k6-wide, fixture) is valid for the
-  bichromatic rule; they are refused. The k-strip strategy of DZ Thm 5 is encoded
-  only for the listed verified configurations (`kstrip-bichromatic`: `verified-guided`,
-  explorer replay; see `docs/KSTRIP.md`).
-* The shipped Das–Valla internals (4-/5-hole classifiers, twin checks, cell
-  checks) remain monochromatic.
-* The Proof-mode and Break-the-Proof shells play monochromatic strategies only.
-* Non-integer bias and Breaker multi-move rounds are not part of the game
-  engine (parity-based turns); they exist only in the lab simulation.
+Not supported: the shipped Das–Valla internals (4-/5-hole classifiers, twin
+checks, cell checks) remain monochromatic. Bias (`docs/BIAS.md`) is orthogonal
+to the rule and available wherever the sandbox is.
 
 ## Tests
 

@@ -4,6 +4,7 @@
 // live invariant lamps, case-map/sample data, session counters, threat
 // previews, hole effect-diffs, and the attack log (Break mode, §12).
 import { findWinHoles, gameModeOf } from "../game/gamemode.ts";
+import { roundOf } from "../game/turnorder.ts";
 import {
   earlyWinClaimText,
   earlyWinHeadline,
@@ -355,8 +356,16 @@ export interface SessionStats {
 // bit-shift ceil avoids even Math.* outside projection.ts).
 export function sessionStats(state: GameState): SessionStats {
   const move = state.points.length;
+  // Biased sessions: round r starts with Maker's r-th point (turnorder.ts).
+  // 1:1 keeps the original ceil(move/2).
+  const round =
+    state.bias !== undefined
+      ? roundOf(state.points.filter((p) => p.owner === "maker").length)
+      : move === 0
+        ? 0
+        : (move + 1) >> 1;
   return {
-    round: move === 0 ? 0 : ((move + 1) >> 1),
+    round,
     move,
     points: move,
     turn: state.turn,

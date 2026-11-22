@@ -64,6 +64,9 @@ export interface GameState {
   // omitted, never set to "monochromatic", so monochromatic states stay
   // structurally and hash-wise identical (see gamemode.ts gameModeOf).
   readonly gameMode?: GameMode;
+  // Bias 1:s (Breaker points per Maker point; turn order in turnorder.ts).
+  // ABSENT means 1:1; only a value other than 1 is ever stored.
+  readonly bias?: Rat;
   readonly points: readonly PlacedPoint[];
   readonly turn: Player | "over";
   readonly terminal: Terminal | null;
@@ -137,7 +140,11 @@ export type Rejection =
   | { reason: "ui-too-close"; at: Pt }
   // a placement the session cannot accept right now — the game is
   // over, or (guided modes) the placement's owner is not Breaker.
-  | { reason: "wrong-turn"; at: Pt; detail: "game-over" | "not-breaker" | "point-cap" };
+  | {
+      reason: "wrong-turn";
+      at: Pt;
+      detail: "game-over" | "not-breaker" | "point-cap" | "out-of-turn";
+    };
 
 export interface RawEvent {
   readonly owner: Player;
@@ -194,6 +201,8 @@ export interface SessionConfig {
   window: WindowBounds;
   // Optional; absent === "monochromatic".
   gameMode?: GameMode;
+  // Optional; absent === 1:1. Guided sessions refuse any other value.
+  bias?: Rat;
 }
 
 export type Diagnostic =

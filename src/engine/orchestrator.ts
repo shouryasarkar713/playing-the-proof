@@ -89,7 +89,7 @@ export type AdmissionResult =
   | {
       ok: false;
       reason: "state-invariant";
-      violated: "i1" | "i2" | "i3" | "i4" | "i5a" | "i6";
+      violated: "i1" | "i2" | "i3" | "i4" | "i5a" | "i6" | "i7";
       detail: string;
     }
   | { ok: false; reason: "not-parked"; nodeId: NodeId };

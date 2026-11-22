@@ -17,6 +17,7 @@ import type {
   UserAction,
 } from "../game/types.ts";
 import type { HoleAnalysis, KHole } from "../geometry/holes.ts";
+import { biasFromWire, validateBias } from "../game/turnorder.ts";
 import { moveSpecFromJSON, moveSpecToJSON } from "../engine/replay.ts";
 import type { MoveSpecJSON } from "../engine/replay.ts";
 
@@ -127,7 +128,15 @@ export interface ReplayTxnJSON {
 // older reader rejects such a file (bad-version) instead of silently
 // replaying it under the monochromatic rule. v2 → v3 migration is implicit
 // and lossless: a v2 file is a v3 file with gameMode "monochromatic".
-export type ReplayVersion = 2 | 3;
+//
+// v4 adds `config.bias` (REQUIRED in v4, FORBIDDEN in v2/v3; canonical "n/d"):
+// a session with a bias other than 1:1 is only expressible in v4, so an older
+// reader rejects it (bad-version) instead of replaying it as 1:1. The
+// canonical writer picks the lowest version that can express the session:
+// v2 = monochromatic 1:1, v3 = bichromatic 1:1, v4 = any bias other than 1:1.
+// v4 also requires `config.gameMode`. Migration v2/v3 -> v4 is lossless
+// (replay/migrate.ts).
+export type ReplayVersion = 2 | 3 | 4;
 
 export interface ReplayFileJSON {
   format: "esmb-replay";
@@ -137,6 +146,7 @@ export interface ReplayFileJSON {
     k: number;
     mode: "proof" | "break" | "sandbox";
     gameMode?: GameMode;
+    bias?: string;
     window: { xMin: string; xMax: string; yMin: string; yMax: string };
   };
   strategy: { id: string; version: string } | null;
@@ -166,8 +176,10 @@ export interface ReplayFile {
   config: {
     k: 3 | 4 | 5 | 6 | 7 | 8;
     mode: "proof" | "break" | "sandbox";
-    // Present iff version === 3.
+    // Present iff version >= 3.
     gameMode?: GameMode;
+    // Present iff version === 4.
+    bias?: Rat;
     window: { xMin: Rat; yMin: Rat; xMax: Rat; yMax: Rat };
   };
   strategy: { id: string; version: string } | null;
@@ -939,14 +951,15 @@ export function parseReplayFile(
       String(doc["format"]),
     );
   }
-  const version: ReplayVersion = doc["version"] === 3 ? 3 : 2;
-  if (doc["version"] !== 2 && doc["version"] !== 3) {
+  const version: ReplayVersion =
+    doc["version"] === 4 ? 4 : doc["version"] === 3 ? 3 : 2;
+  if (doc["version"] !== 2 && doc["version"] !== 3 && doc["version"] !== 4) {
     issue(
       ctx,
       "version",
       "bad-version",
-      "version must be 2 or 3",
-      "2 | 3",
+      "version must be 2, 3 or 4",
+      "2 | 3 | 4",
       String(doc["version"]),
     );
   }
@@ -997,6 +1010,7 @@ export function parseReplayFile(
   let k: 3 | 4 | 5 | 6 | 7 | 8 = 5;
   let mode: "proof" | "break" | "sandbox" = "break";
   let gameMode: GameMode | undefined;
+  let bias: Rat | undefined;
   let window: { xMin: Rat; yMin: Rat; xMax: Rat; yMax: Rat } | null = null;
   if (!isRecord(doc["config"])) {
     issue(ctx, "config", "missing-field", "missing config object");
@@ -1032,6 +1046,30 @@ export function parseReplayFile(
     }
     // Game mode (v3 only): required in v3, forbidden in v2 so a v2 file can
     // never smuggle in a non-monochromatic rule.
+    // Bias (v4 only): required in v4, forbidden in v2/v3.
+    if (version === 4) {
+      const wire = config["bias"];
+      const parsed = typeof wire === "string" ? biasFromWire(wire) : null;
+      if (parsed === null) {
+        issue(
+          ctx,
+          "config.bias",
+          "wrong-type",
+          'config.bias must be a canonical "n/d" rational (required in v4)',
+        );
+      } else if (validateBias(parsed) !== null) {
+        issue(ctx, "config.bias", "wrong-type", `config.bias: ${String(validateBias(parsed))}`);
+      } else {
+        bias = parsed;
+      }
+    } else if ("bias" in config) {
+      issue(
+        ctx,
+        "config.bias",
+        "bad-version",
+        "config.bias is not part of format v2/v3 (use version 4)",
+      );
+    }
     if (version === 2) {
       if ("gameMode" in config) {
         issue(
@@ -1628,6 +1666,7 @@ export function parseReplayFile(
       k,
       mode,
       ...(gameMode !== undefined ? { gameMode } : {}),
+      ...(bias !== undefined ? { bias } : {}),
       window,
     },
     strategy,
@@ -1774,6 +1813,9 @@ export function serializeReplay(file: ReplayFile): string {
       mode: file.config.mode,
       ...(file.config.gameMode !== undefined
         ? { gameMode: file.config.gameMode }
+        : {}),
+      ...(file.config.bias !== undefined
+        ? { bias: file.config.bias.toString() }
         : {}),
       window: {
         xMin: ratStr(file.config.window.xMin),

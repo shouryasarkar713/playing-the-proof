@@ -18,6 +18,7 @@ import type {
   GameMode,
   GameState,
 } from "../game/types.ts";
+import type { Rat } from "../geometry/rat.ts";
 import { gameModeOf } from "../game/gamemode.ts";
 import { parseExperiment } from "../replay/experiment.ts";
 import {
@@ -35,10 +36,14 @@ const AUTOSAVE_PREFIX = "pp.autosave.v2.";
 
 // Only the literal bichromatic flag is ever written (monochromatic sessions
 // keep writing format v2, byte-identical to before the flag existed).
-function gameModeField(state: GameState): { gameMode?: GameMode } {
-  return gameModeOf(state) === "bichromatic"
-    ? { gameMode: "bichromatic" }
-    : {};
+function gameModeField(state: GameState): { gameMode?: GameMode; bias?: Rat } {
+  return {
+    ...(gameModeOf(state) === "bichromatic"
+      ? { gameMode: "bichromatic" as const }
+      : {}),
+    // A bias other than 1:1 writes format v4 (engine/replay.ts).
+    ...(state.bias !== undefined ? { bias: state.bias } : {}),
+  };
 }
 
 // resumeExperiment: k-strip / lab experiment files (replay/experiment.ts).
@@ -211,7 +216,11 @@ export function resumeSession(
   (shell.ctx.config as { window: typeof file.config.window }).window =
     file.config.window;
   if (file.strategy === null) {
-    shell.startSandbox(file.config.k, file.config.gameMode === "bichromatic" ? "bichromatic" : "monochromatic");
+    shell.startSandbox(
+      file.config.k,
+      file.config.gameMode === "bichromatic" ? "bichromatic" : "monochromatic",
+      file.config.bias,
+    );
   } else {
     shell.startBreak(file.strategy.id, file.strategyStart ?? undefined);
   }

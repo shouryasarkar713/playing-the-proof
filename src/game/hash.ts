@@ -2,6 +2,7 @@
 // serialization (explicit field order; "n/d" rationals; no timestamps, no
 // floats, no key-order dependence). Pure.
 import type { HoleAnalysis } from "../geometry/holes.ts";
+import { isUnitBias } from "./turnorder.ts";
 import type {
   Binding,
   GameState,
@@ -105,11 +106,17 @@ export function canonicalStateString(state: GameState): string {
   // exactly as before the flag existed, so their hashes cannot move.
   const gameMode =
     state.gameMode === "bichromatic" ? ["gamemode:bichromatic"] : [];
+  // Likewise the bias contributes a line ONLY when it differs from 1:1.
+  const bias =
+    state.bias !== undefined && !isUnitBias(state.bias)
+      ? [`bias:${state.bias.toString()}`]
+      : [];
   return [
     `seq:${state.seq}`,
     `k:${state.k}`,
     `mode:${state.mode}`,
     ...gameMode,
+    ...bias,
     `points:${points}`,
     `turn:${state.turn}`,
     `terminal:${terminal}`,

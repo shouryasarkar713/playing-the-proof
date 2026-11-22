@@ -6,6 +6,7 @@ import type { EngineResult, RuntimeCtx } from "../engine/orchestrator.ts";
 import { commit } from "../session/commit.ts";
 import type { Store } from "../session/store.ts";
 import type { Rejection, UserAction } from "../game/types.ts";
+import { OUT_OF_TURN_TEXT } from "../explain/bias.ts";
 import { saveAutosave } from "./replay-io.ts";
 
 export function dispatch(
@@ -47,6 +48,8 @@ export function rejectionText(rejection: Rejection): string {
         ? "The game is over — rewind or start again."
         : rejection.detail === "point-cap"
           ? "Point cap reached (64 points) — the exact analysis is only specified up to that size."
-          : "Only Breaker places points here; Maker's replies are automatic.";
+          : rejection.detail === "out-of-turn"
+            ? OUT_OF_TURN_TEXT
+            : "Only Breaker places points here; Maker's replies are automatic.";
   }
 }

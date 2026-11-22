@@ -6,6 +6,9 @@ import { isKHole } from "../../geometry/holes.ts";
 import type { HoleAnalysis } from "../../geometry/holes.ts";
 import { analyzeWinHoles, gameModeOf } from "../../game/gamemode.ts";
 import { gameModeLabel, ruleCaption } from "../../explain/gamemode.ts";
+import { biasCaption, biasLabel } from "../../explain/bias.ts";
+import { isUnitBias, turnSequence, validateBias } from "../../game/turnorder.ts";
+import { parseBias } from "../../lab/bias.ts";
 import { gp } from "../../geometry/predicates.ts";
 import { hull } from "../../geometry/hull.ts";
 import { Rat } from "../../geometry/rat.ts";
@@ -189,9 +192,19 @@ export function mountSandbox(
   makerBtn.textContent = "Maker";
   const breakerBtn = document.createElement("button");
   breakerBtn.textContent = "Breaker";
+  // Under a bias the player to move is fixed by the engine's turn order
+  // (game/turnorder.ts); the owner buttons then only display it.
+  const activeOwner = (): Player => {
+    const st = shell.store.current();
+    return st.bias !== undefined && st.turn !== "over" ? st.turn : owner;
+  };
   const syncOwner = (): void => {
-    makerBtn.setAttribute("aria-pressed", String(owner === "maker"));
-    breakerBtn.setAttribute("aria-pressed", String(owner === "breaker"));
+    const biased = shell.store.current().bias !== undefined;
+    const who = activeOwner();
+    makerBtn.setAttribute("aria-pressed", String(who === "maker"));
+    breakerBtn.setAttribute("aria-pressed", String(who === "breaker"));
+    makerBtn.disabled = biased;
+    breakerBtn.disabled = biased;
   };
   makerBtn.addEventListener("click", () => {
     owner = "maker";
@@ -250,7 +263,7 @@ export function mountSandbox(
     const b = document.createElement("button");
     b.textContent = String(k);
     b.addEventListener("click", () => {
-      shell.startSandbox(k as 3 | 4 | 5 | 6 | 7 | 8);
+      shell.startSandbox(k as 3 | 4 | 5 | 6 | 7 | 8, gameMode, shell.store.current().bias);
     });
     kRow.appendChild(b);
   }
@@ -273,6 +286,7 @@ export function mountSandbox(
         shell.startSandbox(
           shell.store.current().k as 3 | 4 | 5 | 6 | 7 | 8,
           m,
+          shell.store.current().bias,
         );
       }
     });
@@ -282,6 +296,53 @@ export function mountSandbox(
   ruleCap.id = "sandbox-rule-caption";
   ruleCap.textContent = ruleCaption(gameMode);
   ruleRow.appendChild(ruleCap);
+
+  // Bias 1:s (docs/BIAS.md): a property of the session (GameState.bias), so
+  // changing it starts a fresh sandbox. Integers and simple rationals in
+  // [0, 16] with denominator <= 12; the engine enforces the turn order.
+  const SANDBOX_BIAS_MAX = 16n;
+  const SANDBOX_BIAS_MAX_DEN = 12n;
+  const curBias = shell.store.current().bias;
+  const biasRow = document.createElement("div");
+  biasRow.id = "sandbox-bias";
+  const biasLbl = document.createElement("label");
+  biasLbl.textContent = "bias 1:";
+  biasLbl.htmlFor = "sandbox-bias-input";
+  const biasInput = document.createElement("input");
+  biasInput.id = "sandbox-bias-input";
+  biasInput.value =
+    curBias === undefined ? "1" : curBias.d === 1n ? String(curBias.n) : curBias.toString();
+  const biasBtn = document.createElement("button");
+  biasBtn.type = "button";
+  biasBtn.id = "sandbox-bias-apply";
+  biasBtn.textContent = "Set bias";
+  const biasCap = document.createElement("p");
+  biasCap.id = "sandbox-bias-caption";
+  biasCap.textContent = biasCaption(curBias);
+  biasBtn.addEventListener("click", () => {
+    const parsed = parseBias(biasInput.value);
+    if (
+      parsed === null ||
+      validateBias(parsed) !== null ||
+      parsed.d > SANDBOX_BIAS_MAX_DEN ||
+      parsed.n > SANDBOX_BIAS_MAX * parsed.d
+    ) {
+      toast(
+        `Bias must be an integer or a simple fraction (denominator up to ${String(SANDBOX_BIAS_MAX_DEN)}) between 0 and ${String(SANDBOX_BIAS_MAX)}.`,
+      );
+      return;
+    }
+    const nextBias = isUnitBias(parsed) ? undefined : parsed;
+    if (biasLabel(nextBias) === biasLabel(shell.store.current().bias)) {
+      return;
+    }
+    shell.startSandbox(
+      shell.store.current().k as 3 | 4 | 5 | 6 | 7 | 8,
+      gameMode,
+      nextBias,
+    );
+  });
+  biasRow.append(biasLbl, biasInput, biasBtn, biasCap);
 
   // Seeded generator (sizes 3–24; 25–32 with an explicit capped warning).
   const genBox = document.createElement("div");
@@ -448,13 +509,15 @@ export function mountSandbox(
   controls.append(makerBtn, breakerBtn, undoBtn, resetBtn, exportBtn, menuBtn);
   // The Overmars-29 facts are about the monochromatic rule: disabled, with
   // the reason shown, under the bichromatic rule.
-  if (gameMode === "bichromatic") {
+  if (gameMode === "bichromatic" || curBias !== undefined) {
     presetBtn.disabled = true;
     presetBtn.setAttribute("aria-describedby", "preset-why");
     const why = document.createElement("p");
     why.id = "preset-why";
     why.textContent =
-      "Unavailable under the bichromatic rule: the Overmars-29 data and its hexagon facts concern the monochromatic game.";
+      gameMode === "bichromatic"
+        ? "Unavailable under the bichromatic rule: the Overmars-29 data and its hexagon facts concern the monochromatic game."
+        : "Unavailable under a bias other than 1:1: the Overmars-29 data assumes alternating Maker and Breaker points.";
     presetBox.insertBefore(why, presetBanner);
     verifyBtn.disabled = true;
   }
@@ -462,6 +525,7 @@ export function mountSandbox(
     controls,
     kRow,
     ruleRow,
+    biasRow,
     genBox,
     placeBox,
     diag,
@@ -510,6 +574,7 @@ export function mountSandbox(
     // (deterministic stream ⇒ deterministic set; GP screened exactly
     // against committed + already-generated points).
     const k = currentK();
+    const shellBias = shell.store.current().bias;
     shell.store.clear();
     const started = startSession(
       {
@@ -518,6 +583,7 @@ export function mountSandbox(
           mode: "sandbox",
           window: shell.ctx.config.window,
           ...(gameMode === "bichromatic" ? { gameMode } : {}),
+          ...(shellBias !== undefined ? { bias: shellBias } : {}),
         },
         k: k as 3 | 4 | 5 | 6 | 7 | 8,
       },
@@ -612,7 +678,7 @@ export function mountSandbox(
         return;
       }
     }
-    dispatch(shell.store, shell.ctx, { kind: "place", owner, at }, toast);
+    dispatch(shell.store, shell.ctx, { kind: "place", owner: activeOwner(), at }, toast);
     afterBoardChange();
   }
 
@@ -629,10 +695,22 @@ export function mountSandbox(
       ...shell.ctx,
       config: { ...shell.ctx.config, analysis: { budgetOps: 0 } },
     };
+    // Biased session: owners follow the engine's turn order, whatever the
+    // caller proposed (the geometry of the batch is unchanged).
+    const base = shell.store.current();
+    const forced =
+      base.bias !== undefined
+        ? turnSequence(base.bias, base.points.length + items.length).slice(base.points.length)
+        : null;
     shell.store.batch(() => {
-      for (const it of items) {
-        dispatch(shell.store, quick, { kind: "place", owner: it.owner, at: it.at }, toastFn);
-      }
+      items.forEach((it, i) => {
+        dispatch(
+          shell.store,
+          quick,
+          { kind: "place", owner: forced !== null ? (forced[i] as Player) : it.owner, at: it.at },
+          toastFn,
+        );
+      });
     });
   }
 
@@ -978,7 +1056,7 @@ export function mountSandbox(
     }
     // Math-legal and displayable: the single engine path (commit publishes
     // → subscribers re-render).
-    dispatch(shell.store, shell.ctx, { kind: "place", owner, at }, toast);
+    dispatch(shell.store, shell.ctx, { kind: "place", owner: activeOwner(), at }, toast);
     afterBoardChange();
   };
   shell.svg.addEventListener("mousemove", onMove);
@@ -995,6 +1073,7 @@ export function mountSandbox(
       controls.remove();
       kRow.remove();
       ruleRow.remove();
+      biasRow.remove();
       genBox.remove();
       placeBox.remove();
       diag.remove();

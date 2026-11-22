@@ -144,12 +144,16 @@ function requestFrom(file: ReplayFile): InitRequest {
     file.config.gameMode === "bichromatic"
       ? { gameMode: "bichromatic" as const }
       : {};
+  // v4 carries the bias; a stored 1:1 folds as absent (init normalises).
+  const biasField =
+    file.config.bias !== undefined ? { bias: file.config.bias } : {};
   if (file.strategy === null) {
     return {
       kind: "sandbox",
       config: {
         mode: file.config.mode as "sandbox",
         ...modeField,
+        ...biasField,
         window: file.config.window,
       },
       k: file.config.k as 3 | 4 | 5 | 6 | 7 | 8,
@@ -160,6 +164,7 @@ function requestFrom(file: ReplayFile): InitRequest {
     config: {
       mode: file.config.mode as "proof" | "break",
       ...modeField,
+      ...biasField,
       window: file.config.window,
     },
     strategyId: file.strategy.id,
