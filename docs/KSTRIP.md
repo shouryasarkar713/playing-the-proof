@@ -1,6 +1,6 @@
 # KSTRIP — headless core of the recursive k-strip strategy
 
-Source: Džuklevski et al., *Erdős–Szekeres-type Maker–Breaker games* (arXiv 2505.15366), §2–§3
+Source: Džuklevski et al., *Erdős–Szekeres Maker–Breaker Games* (arXiv:2505.15366; Theoretical Computer Science 1077 (2026), 115999), §2–§3
 (Definition 2, Theorems 3/4/5, Observation 6) and proposal §7. Code: `src/kstrip/`, tests:
 `tests/kstrip/`, independent oracle: `scripts/audit/kstrip_oracle.py` (+ fixture
 `tests/kstrip/fixtures/strips.json`). Layering: `kstrip/` imports `geometry/` only (lint zones +

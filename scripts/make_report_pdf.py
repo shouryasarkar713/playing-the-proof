@@ -51,7 +51,7 @@ table { margin-top: 3pt; margin-bottom: 9pt; font-family: sans-serif; font-size:
 th { background-color: #dfe6f1; border: 0.5pt solid #8f9bb0; padding: 3pt; text-align: left; font-weight: bold; }
 td { border: 0.5pt solid #b6bdca; padding: 3pt; text-align: left; vertical-align: top; }
 p.eq { text-align: center; margin-top: 4pt; margin-bottom: 8pt; font-size: 10.8pt; }
-div.fig { margin-top: 6pt; margin-bottom: 8pt; text-align: center; }
+div.fig { page-break-inside: avoid; margin-top: 6pt; margin-bottom: 8pt; text-align: center; }
 p.cap { font-family: sans-serif; font-size: 8.6pt; line-height: 1.3; text-align: left; color: #333333;
         margin-top: 3pt; margin-bottom: 8pt; }
 p.missing { font-family: sans-serif; font-size: 9pt; color: #7a1f1f; background-color: #f6e6e6;
@@ -72,7 +72,7 @@ SYMBOLS = {
     "in": "∈", "cap": "∩", "cup": "∪", "emptyset": "∅", "partial": "∂",
     "to": "→", "Rightarrow": "⇒", "sum": "∑", "cdot": "·", "times": "×",
     "dots": "…", "ldots": "…", "pm": "±", "subset": "⊂", "subseteq": "⊆",
-    "setminus": "∖", "ell": "ℓ", "lambda": "λ", "varepsilon": "ε", "epsilon": "ε",
+    "setminus": "∖", "sim": "∼", "min": "min", "ell": "ℓ", "lambda": "λ", "varepsilon": "ε", "epsilon": "ε",
     "delta": "δ", "alpha": "α", "pi": "π", "lceil": "⌈", "rceil": "⌉",
     "lfloor": "⌊", "rfloor": "⌋", "infty": "∞", "forall": "∀", "ge": "≥",
 }
@@ -416,9 +416,10 @@ def image_size(path):
     return pix.width, pix.height
 
 
-def block_html(b, tmp, imgmap):
+def block_html(b, tmp, imgmap, brk=False, idx=0, meta=None):
+    style = ' style="page-break-before: always"' if brk else ""
     if b.kind == "h":
-        return "<h%d>%s</h%d>" % (b.level, inline(b.text), b.level)
+        return "<h%d%s>%s</h%d>" % (b.level, style, inline(b.text), b.level)
     if b.kind == "p":
         return "<p>%s</p>" % inline(b.text)
     if b.kind == "eq":
@@ -439,40 +440,56 @@ def block_html(b, tmp, imgmap):
             rows.append("<tr>%s</tr>" % "".join("<td>%s</td>" % inline(c) for c in r))
         return "<table width=\"100%%\"><tr>%s</tr>%s</table>" % (head, "".join(rows))
     if b.kind == "img":
-        cap = '<p class="cap">%s</p>' % inline(b.alt)
+        cap = '<p class="cap" id="cap%d">%s</p>' % (idx, inline(b.alt))
         name = imgmap.get(b.path)
         if name is None:
-            return '<div class="fig"><p class="missing">Figure file not available: %s</p>%s</div>' % (html.escape(b.path), cap)
+            return '<div class="fig" id="fig%d"%s><p class="missing">Figure file not available: %s</p>%s</div>' % (idx, style, html.escape(b.path), cap)
         w, h = image_size(os.path.join(tmp, name))
         width = min(TEXT_WIDTH, 470.0)
         if width * h / w > MAX_FIG_HEIGHT:
             width = MAX_FIG_HEIGHT * w / h
-        return '<div class="fig"><img src="%s" width="%d"/>%s</div>' % (name, int(width), cap)
+        if meta is not None:
+            meta.append((idx, int(width), width * h / w))
+        return '<div class="fig" id="fig%d"%s><img src="%s" width="%d"/>%s</div>' % (idx, style, name, int(width), cap)
     raise ValueError(b.kind)
 
 
 def render_story(html_text, archive_dir, rect_fn, writer_path=None):
-    """Lay out `html_text`; returns (path of the PDF written, [(level, text, page_no)])."""
+    """Lay out `html_text`; returns ([(level, text, page_no, y_bottom)], pages, {id: page})."""
     arch = pymupdf.Archive(archive_dir) if archive_dir else None
     story = pymupdf.Story(html=html_text, user_css=CSS, archive=arch)
     positions = []
-    path = writer_path
-    writer = pymupdf.DocumentWriter(path)
+    ids = {}
+    writer = pymupdf.DocumentWriter(writer_path)
     pno = 0
     more = True
     while more:
         pno += 1
         dev = writer.begin_page(PAGE)
         more, _ = story.place(rect_fn(pno))
+
         def record(p):
             if p.heading and (p.open_close & 1):
-                positions.append((p.heading, p.text, p.page))
+                positions.append((p.heading, p.text, p.page, p.rect[3], p.rect[1]))
+            if p.id and (p.open_close & 1) and p.id not in ids:
+                ids[p.id] = [p.page, p.rect[1], p.rect[3]]
+            if p.id and (p.open_close & 2) and p.id in ids:
+                ids[p.id][2] = p.rect[3]
 
         story.element_positions(record, {"page": pno})
         story.draw(dev)
         writer.end_page()
     writer.close()
-    return positions, pno
+    last = {}
+    for pp in positions:  # a heading may be reported more than once; keep the last report
+        last[(pp[0], pp[1])] = pp
+    seen, dedup = set(), []
+    for pp in positions:
+        key = (pp[0], pp[1])
+        if key not in seen:
+            seen.add(key)
+            dedup.append(last[key])
+    return dedup, pno, ids
 
 
 # ----------------------------------------------------------------- assembly
@@ -522,25 +539,52 @@ def main():
         imgmap = prepare_images(blocks, tmp)
         title_html, title, start = title_page_html(blocks)
         body_blocks = blocks[start:]
-        body_html = "<html><body>%s</body></html>" % "".join(block_html(b, tmp, imgmap) for b in body_blocks)
-        # reset after body conversion so each placeholder is listed once per use in the body only
-        body_rect = lambda pno: BODY_RECT
-
-        # Pass A: body layout (page numbers relative to the body)
         body_pdf = os.path.join(tmp, "body.pdf")
-        positions, body_pages = render_story(body_html, tmp, body_rect, body_pdf)
+        limits = {}  # page number -> bottom of the text area (shortened to push a block to the next page)
+
+        def body_rect(pno):
+            return pymupdf.Rect(BODY_RECT.x0, BODY_RECT.y0, BODY_RECT.x1, limits.get(pno, BODY_RECT.y1))
+
+        hidx = [i for i, b in enumerate(body_blocks) if b.kind == "h" and b.level in (2, 3)]
+        meta = []
+        body_html = "<html><body>%s</body></html>" % "".join(
+            block_html(b, tmp, imgmap, False, i, meta) for i, b in enumerate(body_blocks)
+        )
+        for attempt in range(120):
+            positions, body_pages, ids = render_story(body_html, tmp, body_rect, body_pdf)
+            offenders = []  # (page, y_top) of blocks that should start on the next page
+            # (a) figures that were shrunk to fit, or whose caption left the image's page
+            for (idx, _width, fig_h) in meta:
+                fig = ids.get("fig%d" % idx)
+                cap = ids.get("cap%d" % idx)
+                if fig is not None and (fig[2] - fig[1] < fig_h - 2 or (cap is not None and cap[0] != fig[0])):
+                    offenders.append((fig[0], fig[1]))
+            # (b) headings stranded at the foot of a page
+            hpos = [pp for pp in positions if pp[0] in (2, 3)]
+            if len(hidx) != len(hpos):
+                sys.exit("heading count mismatch: layout reported %d, document has %d" % (len(hpos), len(hidx)))
+            for pp in hpos:
+                if pp[3] > limits.get(pp[2], BODY_RECT.y1) - 70:
+                    offenders.append((pp[2], pp[4]))
+            offenders = [o for o in offenders if o[1] > BODY_RECT.y0 + 8]  # blocks already at the top of a page cannot move
+            if body_pages > 150:
+                sys.exit("layout diverged")
+            if not offenders:
+                break
+            page, ytop = min(offenders)
+            limits[page] = ytop - 1
+        else:
+            print("warning: pagination did not settle", file=sys.stderr)
         heads = [(b.level, b.text) for b in body_blocks if b.kind == "h" and b.level in (2, 3)]
-        found = [(lvl, pg) for (lvl, _txt, pg) in positions if lvl in (2, 3)]
-        if len(found) != len(heads):
-            sys.exit("heading count mismatch: layout reported %d, document has %d" % (len(found), len(heads)))
+        found = [(pp[0], pp[2]) for pp in positions if pp[0] in (2, 3)]
         entries = [(h[0], h[1], pg) for h, (_lvl, pg) in zip(heads, found)]
 
         # Table of contents: render once with dummy numbers to learn its page count, then again.
         toc_pdf = os.path.join(tmp, "toc.pdf")
-        _, toc_pages = render_story(toc_html([(l, t, 999) for l, t, _ in entries]), tmp, body_rect, toc_pdf)
+        _, toc_pages, _ids = render_story(toc_html([(l, t, 999) for l, t, _ in entries]), tmp, lambda pno: BODY_RECT, toc_pdf)
         front = 1 + toc_pages
         final_entries = [(l, t, pg + front) for l, t, pg in entries]
-        render_story(toc_html(final_entries), tmp, body_rect, toc_pdf)
+        render_story(toc_html(final_entries), tmp, lambda pno: BODY_RECT, toc_pdf)
 
         title_pdf = os.path.join(tmp, "title.pdf")
         render_story(title_html, tmp, lambda pno: BODY_RECT, title_pdf)
