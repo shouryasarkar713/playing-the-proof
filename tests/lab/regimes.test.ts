@@ -26,9 +26,13 @@ import { configToJSON } from "../../src/lab/classify.ts";
 import { strategies } from "../../src/strategy/registry.ts";
 import { ensureK5 } from "../strategies/k5driver.ts";
 import { ensureK6 } from "../strategies/k6driver.ts";
+import { ensureK7 } from "../strategies/k7driver.ts";
+import { ensureK8 } from "../strategies/k8driver.ts";
 
 ensureK5();
 ensureK6();
+ensureK7();
+ensureK8();
 
 describe("source rows", () => {
   it("ids are unique; game rows carry a status, reference rows do not", () => {
@@ -194,11 +198,17 @@ describe("round bounds (DZ Thm 3 / Thm 4)", () => {
 });
 
 describe("encodings registry", () => {
-  it("today: only esmb-k5 and esmb-k6 are verified-interactive", () => {
-    const verified = ENCODING_REGISTRY.filter((e) => isVerified(e.availability)).map((e) => e.id);
-    expect(verified.sort()).toEqual(["esmb-k5", "esmb-k6"]);
-    for (const id of ["esmb-k7", "esmb-k8", "kstrip-mono-1:1", "kstrip-mono-bias", "kstrip-bichromatic"]) {
-      expect(encodingEntry(id)?.availability, id).toBe("none");
+  it("esmb-k5/k6/k7 are verified-interactive and esmb-k8 verified-guided; k-strip entries are verified-guided for listed configurations only", () => {
+    const verified = ENCODING_REGISTRY.filter((e) => !e.id.startsWith("kstrip-") && isVerified(e.availability)).map((e) => e.id);
+    expect(verified.sort()).toEqual(["esmb-k5", "esmb-k6", "esmb-k7", "esmb-k8"]);
+    expect(encodingEntry("esmb-k7")?.availability).toBe("verified-interactive");
+    expect(encodingEntry("esmb-k8")?.availability).toBe("verified-guided");
+    for (const id of ["kstrip-mono-1:1", "kstrip-mono-bias", "kstrip-bichromatic"]) {
+      const e = encodingEntry(id);
+      expect(e?.availability, id).toBe("verified-guided");
+      expect(e?.replay, id).toBe("explorer");
+      expect(e?.verifiedScope?.length, id).toBeGreaterThan(0);
+      expect(e?.note, id).toMatch(/not a proof/i);
     }
     expect(encodingEntry("esmb-k6-wide")?.availability).toBe("exists-unverified");
   });

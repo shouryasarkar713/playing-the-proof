@@ -263,10 +263,20 @@ describe("encoding selection never changes the status", () => {
   });
 
   it("unverified/none encodings offer no replay even when they match", () => {
+    expect(classify(cfg("online", "monochromatic", 7, "1", { encodingId: "kstrip-mono-1:1" })).encoding).toMatchObject({
+      applies: true,
+      availability: "exists-unverified", // k=7 lies outside the verified k-strip scope
+      replayOffered: false,
+    });
     expect(classify(cfg("online", "monochromatic", 7, "1", { encodingId: "esmb-k7" })).encoding).toMatchObject({
       applies: true,
-      availability: "none",
-      replayOffered: false,
+      availability: "verified-interactive",
+      replayOffered: true,
+    });
+    expect(classify(cfg("online", "monochromatic", 8, "1", { encodingId: "esmb-k8" })).encoding).toMatchObject({
+      applies: true,
+      availability: "verified-guided",
+      replayOffered: true,
     });
     expect(classify(cfg("online", "monochromatic", 6, "1", { encodingId: "esmb-k6-wide" })).encoding).toMatchObject({
       availability: "exists-unverified",
@@ -279,8 +289,8 @@ describe("encoding selection never changes the status", () => {
   });
 
   it("an injected registry (integrator update) flips replay without touching classification code", () => {
-    const updated = ENCODING_REGISTRY.map((e) => (e.id === "esmb-k7" ? { ...e, availability: "verified-guided" as const } : e));
-    const r = classify(cfg("online", "monochromatic", 7, "1", { encodingId: "esmb-k7" }), updated);
+    const updated = ENCODING_REGISTRY.map((e) => (e.id === "esmb-k6-wide" ? { ...e, availability: "verified-guided" as const } : e));
+    const r = classify(cfg("online", "monochromatic", 6, "1", { encodingId: "esmb-k6-wide" }), updated);
     expect(r.encoding).toMatchObject({ availability: "verified-guided", replayOffered: true });
   });
 });
