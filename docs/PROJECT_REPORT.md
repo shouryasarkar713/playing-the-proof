@@ -34,7 +34,7 @@ This project takes the position that the **game is the medium and the geometric 
 
 Making this honest requires separating three things that are easily conflated: what a published theorem asserts, what the software computes exactly on a particular board, and what the software merely samples. Much of the architecture described below exists to keep those categories apart, and the evaluation chapter reports them separately.
 
-The remainder of the report is organised as follows. Section 2 recalls the mathematics. Section 3 states objectives and scope. Section 4 presents the architecture, and Section 5 the exact geometric engine and its verification layer. Sections 6 to 10 describe the interactive proof modules, the general k-strip explorer, the parameter laboratory, the strategy-aware Maker and Breaker, and the bichromatic and biased game support. Section 11 describes the interaction design, Section 12 the evaluation, and Section 13 the limitations. The appendix lists setup, controls, reproduction commands and a mapping from features to the checks that cover them.
+The remainder of the report is organised as follows. Section 2 recalls the mathematics. Section 3 states objectives and scope. Section 4 presents the architecture, and Section 5 the exact geometric engine and its verification layer. Sections 6 to 10 describe the interactive proof modules, the general k-strip explorer, the parameter laboratory, the strategy-aware Maker and Breaker, and the bichromatic and biased game support. Section 11 describes the interaction design, Section 12 the evaluation, and Section 13 the limitations. The appendices list setup, controls, reproduction commands and a mapping from features to the checks that cover them.
 
 ---
 
@@ -80,7 +80,7 @@ $$r(k,t) = r(k-1,\,4t) + 2t \qquad (k \ge 3).$$
 
 Unrolling the recurrence is an elementary calculation, reproduced here only to show that the closed form is an equality; for $k\ge2$,
 
-$$r(k,t) = r(2,4^{k-2}t) + 2t\sum_{j=0}^{k-3}4^{j} = 4^{k-2}t + 2t\,\frac{4^{k-2}-1}{3} = \Big(\tfrac{5}{3}\,4^{k-2}-\tfrac{2}{3}\Big)t.$$
+$$r(k,t) = r(2,4^{k-2}t) + 2t\,(1+4+4^{2}+\dots+4^{k-3}) = 4^{k-2}t + 2t\,\frac{4^{k-2}-1}{3} = \Big(\tfrac{5}{3}\,4^{k-2}-\tfrac{2}{3}\Big)t.$$
 
 The paper states the bound as "at most" in Theorem 3 and writes the closed form with an equality in its proof [1]. For the biased game with integer $s \ge 1$ the recurrence becomes $r(k,t) = r(k-1,4st)+2t$ for $k \ge 3$ only (at $k=2$ it would give $r(1,4st)+2t \neq r(2,t)$), with closed form, valid for $k \ge 2$,
 
@@ -115,7 +115,7 @@ The application is a TypeScript single-page program built with Vite, with **zero
 
 ### 4.2 Layered modules
 
-The source is divided into twelve modules whose import relations are fixed by lint rules and by an architecture test that reads the source files (`eslint.config.js`, `tests/architecture.test.ts`). Ten of them form a stack in which every module may import only from strictly lower layers; two further modules, `kstrip` and `lab`, are leaves that depend only on the lowest layers and may be imported only by the interface.
+The source is divided into twelve modules whose import relations are fixed by lint rules and by an architecture test that reads the source files (`eslint.config.js`, `tests/architecture.test.ts`). Ten of them form a stack in which every module may import only from strictly lower layers; two further modules, `kstrip` and `lab`, are leaves that depend only on the lowest layers and may be imported only by the interface (Figure 1).
 
 ![Figure 1. Module layering of src/. The ten stacked layers import strictly downward; kstrip and lab are leaf modules importable only by ui.](figures/architecture.svg)
 
@@ -134,7 +134,7 @@ The source is divided into twelve modules whose import relations are fixed by li
 | `kstrip` | headless k-strip core, including the declarative specification in `kstrip/spec` | geometry only; imported by ui only |
 | `lab` | parameter laboratory | geometry, game only; imported by ui only |
 
-Together the modules comprise roughly 31,700 lines of TypeScript in `src/` and 28,000 in `tests/`. Further rules are enforced mechanically. The pure layers may not contain tokens that denote effects (document access, timers, storage, network or message passing). Floating-point operations (`Math.*`) may appear only in `viz/projection.ts`, the single place where world and screen coordinates meet, and the orientation formula may be written only in `geometry/predicates.ts`. There is exactly one constructor of integrity reports. The strategy layer is forbidden from evaluating invariants; evaluation belongs to `verification`. The slow test tier is a separate project excluded from the default verification command.
+Together the modules comprise roughly 36,000 lines of TypeScript in `src/` and 30,000 in `tests/`. Further rules are enforced mechanically. The pure layers may not contain tokens that denote effects (document access, timers, storage, network or message passing). Floating-point operations (`Math.*`) may appear only in `viz/projection.ts`, the single place where world and screen coordinates meet, and the orientation formula may be written only in `geometry/predicates.ts`. There is exactly one constructor of integrity reports. The strategy layer is forbidden from evaluating invariants; evaluation belongs to `verification`. The slow test tier is a separate project excluded from the default verification command.
 
 ### 4.3 Data flow
 
@@ -191,7 +191,7 @@ Lemma 6 states that Maker obtains a 5-hole from 7 points in round 4 [2]. The pro
 
 The encoding is a nine-node program. Maker anchors $A_1$ at the origin (the paper leaves this open; fixing it makes replays reproducible), Breaker replies anywhere legal, and $A_2$ is the first of an ordered list of candidate positions not collinear with $A_1$ and $B_1$, so that $\{A_1,B_1,A_2\}$ is a 3-hole. Breaker's $B_2$ is then classified by hull arithmetic as *convex* (four points in convex position, hence a 4-hole that Maker extends at once) or *one interior point* (a point lies inside the triangle of the other three, whatever its owner). In the second case Maker plays a *co-shoulder* placement along the outer edge farthest from the interior point, and a custom checker verifies that the intended 4-hole consisting of that edge, the interior point and $A_3$ exists. After $B_3$ a post-condition confirms that a 4-hole stands, and $A_4$ extends an enumerated 4-hole across its largest free edge interval to a 5-hole. Figure 2 shows the guided proof; Figure 3 shows the same strategy from Breaker's side.
 
-![Figure 2. Proof mode, k = 5, at the node that sorts Breaker's reply to the opening triangle. The panel labels each claim with its tier (geometry, strategy), the invariants panel lists the node's live checks (none at this node), and sample chips play a representative reply for each case.](figures/fig01-proof-k5.png)
+![Figure 2. Proof mode, k = 5, at the node that sorts Breaker's reply to the opening triangle (Maker disc p3, Breaker diamond p2 are visible). The board is tinted by the case map, the panel labels each claim with its tier (geometry, strategy), the invariants panel lists the node's live checks (none at this node), and sample chips play a representative reply for each of the two cases (convex four-set, one interior point).](figures/fig01-proof-k5.png)
 
 ![Figure 3. Break the Proof, k = 5. After the user places a Breaker point by typed or clicked coordinates, the reply is classified, entered in the attack log with its exact coordinates, and counted in the session summary.](figures/fig11-break-k5.png)
 
@@ -215,9 +215,9 @@ Let $H = V_0\ldots V_5$ be the 6-hole with Breaker to move. If $B_0$ is outside 
 
 **The exact-cell gate.** To decide how far the interface may go, the construction was subjected to a finite exact test, with numbers taken from `docs/K7_GATE.md` and its evidence file. Random hexagons were drawn from five families (integer, rational, nearly concurrent main chords, near-collinear, needle-like), each with one extra legal point. For each hexagon *every* cell of the exact line arrangement of the $B_0$ plane was enumerated (all cells inside the hexagon, a capped selection outside), $A_1$ was chosen by the strategy, and then every cell of the post-$A_1$ arrangement for $B_1$ was enumerated. In the first layer a leaf passes when an independent integer oracle, sharing no code with the geometry module, finds a 6-hole after $B_1$: 28 hexagons, 4,499 $B_0$ cells (1,260 inside the hexagon) and **141,466** leaves, with no failures. In the second layer the full engine pipeline had to end in an oracle-confirmed 7-hole: 10 hexagons, 1,604 $B_0$ cells (450 inside) and **4,255** leaves (every second inside cell and every sixth $B_1$ cell), again with no failures. All eight chord-side patterns and the outside case occurred. Seeded random games (five families of 40 games, and 60 chains from a k = 6 win through promotion to k = 7) were also all won. The scope of these facts is a finite family of hexagons, not all hexagons. The documentation reproduces the layers with `K7_GATE_EVIDENCE=<file> npx vitest run --project slow tests/slow/k7gate-cells.test.ts tests/slow/k7gate-engine.test.ts` and reports about 44 minutes on the development machine; this release's own duration is part of the slow tier's 2,291.8 s in total; the two gate files were not timed separately in this run.
 
-**Interactive status.** On that evidence $k=7$ is offered in Proof mode and Break the Proof: every position class of $B_0$ and $B_1$ was covered by exact checks and no branch is guided-only. The badge nevertheless remains *validated-randomized*, because finite exact checks plus per-move run-time verification are not a proof of the theorem. The A1 search is bounded in the same way as for $k=6$, and starts are limited to at most 12 points so that an exact pre-check of the starting position is affordable. A won $k=6$ session can be promoted to a $k=7$ start through the *Grow to 7* button (Section 11).
+**Interactive status.** On that evidence $k=7$ is offered in Proof mode and Break the Proof: every position class of $B_0$ and $B_1$ was covered by exact checks and no branch is guided-only. The badge nevertheless remains *validated-randomized*, because finite exact checks plus per-move run-time verification are not a proof of the theorem. The A1 search is bounded in the same way as for $k=6$, and starts are limited to at most 12 points so that an exact pre-check of the starting position is affordable. A won $k=6$ session can be promoted to a $k=7$ start through the *Grow to 7* button (Section 11). Figure 5 shows the starting position of a $k=7$ session.
 
-![Figure 5. Proof mode, k = 7, at the first node. The 6-hole with its three main chords (which here bound a small central triangle) and one extra point outside it; the panel states that a B0 inside the hexagon lies in exactly three of the six 4-holes, and one sample chip is offered per chord-side case.](figures/fig03-k7.png)
+![Figure 5. Proof mode, k = 7, at the first node. The 6-hole (vertices p2 to p7) with its three main chords, which here bound a small central triangle, and one extra Maker point p1 outside it; the panel states that a B0 inside the hexagon lies in exactly three of the six 4-holes, and sample chips are offered per chord-side case (sector and central classes).](figures/fig03-k7.png)
 
 ### 6.4 k = 8 (Das–Valla Lemma 9): a guided walkthrough
 
@@ -256,9 +256,9 @@ Exact post-conditions (the dedicated `k8-inv` checks and hole-existence checks) 
 
 ![Figure 6. Proof mode, k = 8 (guided), at the node that classifies Breaker's second reply. The seven vertices p1 to p7 are the starting 7-hole, p8 is Breaker's first point B0 (placed inside the heptagon) and p9 is Maker's reply A1. The two shaded polygons are the 6-holes that A1 creates; their overlap, drawn darker, is the triangle p8 p6 p9, which the two holes share.](figures/fig04-k8.png)
 
-![Figure 7. The next position of the same session, after Breaker's reply B1 has been placed inside the shared triangle. The panel shows a 7-hole among the current points and states that Breaker must now place B2 inside it.](figures/fig04c-k8-7hole.png)
+![Figure 7. The next position of the same session. Breaker's B1 (p10) has been placed inside the shared triangle and Maker has replied with A2 (p11); the shaded heptagon p1, p8, p11, p10, p6, p4, p2 is the 7-hole X. The panel states that Breaker must now place B2 inside X, and offers the chips for B2 inside or outside X. (The evidence line on this screen counts 6-holes.)](figures/fig04c-k8-7hole.png)
 
-![Figure 8. The end of a guided k = 8 session: the win card for an 8-hole whose witness vertices (p1, p13, p12, p4, p6, p10, p11, p8) were verified by the exact hole predicate. The card dims the board, so the witness edges are only partly visible behind it.](figures/fig04b-k8-final.png)
+![Figure 8. End of a guided k = 8 session along one sample path. The win card reports round 7 and 13 points: the 8-hole with vertices p1, p13, p12, p4, p6, p10, p11, p8 (several of them Breaker points, which count under the monochromatic rule) was found by the exact hole predicate. This path ends before the full five-round construction of Section 6.4 would. The card dims the board, so the hole's edges are only partly visible behind it.](figures/fig04b-k8-final.png)
 
 ## 7 General k-Strip Strategy Explorer
 
@@ -316,11 +316,11 @@ For Theorem 4 the paper rotates the line through $s_{i,1}$ over Breaker's points
 
 For Theorem 5 the pairing indices in the paper's proof speak of $S_j$ and $S_{j+1}$; the construction needs disjoint pairs $(S_{2j-1},S_{2j})$, and the software reads it that way. More substantially, the proof finds at least $\epsilon t$ disjoint strips among $2t$ candidates with $t=\lceil r/\epsilon\rceil$, but the two surviving candidates of one pair are not parallel by Definition 2. Only $t-\lfloor B/2\rfloor$ pairs are guaranteed, which gives $\epsilon t/2$ rather than $\epsilon t$ parallel strips. For $r=2$, $s=3/2$ the paper's $t=4$ gives 8 candidates, and $B=6$ Breaker points can kill three whole pairs, leaving two live candidates in one pair, one parallel strip, fewer than $r$. The executor therefore uses the strict $t=\lceil 2r/\epsilon\rceil$. This is a finding about how the proof's count is worded, offered as an observation; it does not claim that Theorem 5 is false, and the verified runs are in the table above. For non-integer bias the software uses $\lfloor m\,s\rfloor$ Breaker points in total after Maker's $m$-th point, a convention the sources do not fix.
 
-The theorem-level guarantee remains the paper's. What the software contributes is an exact check *per run* and property tests that drive the executor with arbitrary legal Breaker sequences (random, interior, on the shared halfline, directly below end vertices, above $p_j$) asserting that the final survivors are at least $t$ and that the ledger bound never exceeds the true count. Figures 6 and 7 show the explorer.
+The theorem-level guarantee remains the paper's. What the software contributes is an exact check *per run* and property tests that drive the executor with arbitrary legal Breaker sequences (random, interior, on the shared halfline, directly below end vertices, above $p_j$) asserting that the final survivors are at least $t$ and that the ledger bound never exceeds the true count. Figures 9 and 10 show the explorer.
 
-![Figure 9. k-strip explorer: the recursion table (rounds from the recurrence and from the closed form, which agree) and the claim-tier legend, beside a board of strips. Unbounded regions are clipped for display, as the caption on the board says.](figures/fig05-kstrip-explorer.png)
+![Figure 9. k-strip explorer for k = 3 and t = 2: the recursion table (rounds from the recurrence and from the closed form, which agree; the last row is the next level, shown for growth only and not executed) and the claim-tier legend, beside a board of strips drawn with Maker discs and Breaker diamonds. Unbounded regions are clipped for display, as the caption on the board says.](figures/fig05-kstrip-explorer.png)
 
-![Figure 10. Pairing phase in the explorer. A selected candidate pair is drawn with its regions R1 and R2; the panel gives the halfline on which p_j lies and states that the two regions meet exactly in the halfline below p_j. Cone switches and a Break the Proof panel are alongside.](figures/fig06-kstrip-pairing.png)
+![Figure 10. Pairing phase in the explorer. Unit 1 is a pair of candidate regions R1 and R2 (outlined, lower left, partly cut off by the board's legend); the panel gives the point (5/2, 5/2) at which the halfline of the cones starts and states that R1 and R2, both live, meet exactly in the halfline below p_j = (5/2, 3/2). Cone switches and a Break the Proof panel are alongside.](figures/fig06-kstrip-pairing.png)
 
 ### 7.7 The declarative specification
 
@@ -346,13 +346,13 @@ The verified table is: monochromatic 1:1 with $k=2,4,5$ at $t=1$ and $k=3$ at $t
 
 The laboratory asks the question "what is known about this game?" for a configuration of: game model (online or one-round), target $k$, bias $1\!:\!s$ (an exact rational; non-integer values are allowed), rule (monochromatic or bichromatic), an encoded strategy variant, and the number $t$ of parallel structures. A deterministic classifier assigns one of three labels, decided in this order.
 
-*Theorem-backed*: the configuration lies inside a regime stated by a cited source row, independently of any encoding. *Experimental*: it lies outside every cited regime in the *selected game model*, but a bounded exact-geometry simulation covers it ($3\le k\le 8$, bias at most $1\!:\!16$). *Not covered*: neither holds, or the parameters are invalid; the laboratory then lists the nearest theorem-backed neighbours instead of extrapolating. The encoding selection never changes the label; it only decides whether interactive replay is offered.
+*Theorem-backed*: the configuration lies inside a regime stated by a cited source row, independently of any encoding. *Experimental*: it lies outside every cited regime in the *selected game model*, but a bounded exact-geometry simulation covers it ($3\le k\le 8$, bias at most $1\!:\!16$). *Not covered*: neither holds, or the parameters are invalid; the laboratory then lists the nearest theorem-backed neighbours instead of extrapolating. The encoding selection never changes the label; it only decides whether interactive replay is offered. Figures 11 to 13 show the laboratory's regime maps for the three labels.
 
 ![Figure 11. Parameter Laboratory, regime map for the online monochromatic game: every cell (k from 3 to 12, bias 1:0 to 1:16) is one call of the classifier. The selected cell, k = 5 at 1:1, is theorem-backed, and the ledger lists the citations with their basis (derived or proved) and limitations.](figures/fig08-lab.png)
 
 ![Figure 12. Regime map for the online bichromatic rule. The selected cell (k = 7, 1:2) is experimental: no cited statement covers it, a bounded simulation exists, and the nearest theorem-backed neighbours (including the one-round game at the same bias) are listed. Cells marked N are not covered; those marked T are covered by Theorems 5, 8 or 10 of [1].](figures/fig08b-lab-experimental.png)
 
-![Figure 13. A not-covered configuration, with its nearest theorem-backed neighbours.](figures/fig08c-lab-notcovered.png)
+![Figure 13. Regime map for the one-round monochromatic game (k from 3 to 12, bias 1:0 to 1:16). The selected cell, k = 10 at 1:1, is not covered: no cited statement applies and the simulation supports only k up to 8; cells for k = 3 to 6 are theorem-backed (T), those for k = 7 and 8 experimental (E), those for k = 9 to 12 not covered (N). The ledger lists the nearest theorem-backed neighbours.](figures/fig08c-lab-notcovered.png)
 
 ### 8.2 The regime table
 
@@ -446,7 +446,7 @@ The Das–Valla internals (the 4- and 5-hole classifiers, twin checks and cell c
 
 The game engine alternates single moves by parity, so a bias other than 1:1 is not part of the engine. Biased play exists in two places: the k-strip executor for the integer-$s$ configurations of Section 7.5, and the laboratory simulation, where a non-integer bias follows the $\lfloor s\,r\rfloor$ convention. Because neither source fixes a convention for non-integer speeds (discrepancy D5), no theorem is inferred from simulations with non-integer bias.
 
-![Figure 15. Sandbox under the bichromatic rule with k = 5. Maker points are discs and Breaker points diamonds; the highlighted polygons are Maker-only empty pentagons that contain no point of either colour, and the diagnostics line counts them exhaustively over the 14 points.](figures/fig09-bichromatic.png)
+![Figure 15. Sandbox under the bichromatic rule with k = 5 and 14 points. Maker points are discs and Breaker points diamonds (p11 to p14); the highlighted polygon p6, p1, p3, p7, p4 is hole 2 of 8, a Maker-only pentagon whose hull contains no point of either colour. The diagnostics line counts the 8 holes exhaustively over the 14 points, and the Overmars-29 preset is shown as unavailable under this rule.](figures/fig09-bichromatic.png)
 
 ---
 
@@ -460,11 +460,11 @@ The entry screen offers the modes, a strategy picker whose badges are derived fr
 
 **Break the Proof** lets the user play Breaker freely. Hovering previews the case the point would trigger; every attack is classified, logged and absorbed on record; the effect of a move on holes is shown as a before-and-after diff; and terminal panels explain *uncovered* and *integrity failure* outcomes without presenting them as counterexamples.
 
-**Sandbox** places points of either colour with the mouse or by typed exact coordinates, selects $k$, generates seeded random sets, browses holes, counts holes for all $k$ with explicit analysis-kind labels, undoes and resets, and can show passive strategy overlays. Its Overmars-29 preset loads the 29-point set without a 6-hole; a *30th-point demo* adds a point, and a chunked re-verification recounts holes without freezing the page. Under the bichromatic rule this preset is disabled with the reason shown, since its facts concern the monochromatic game.
+**Sandbox** places points of either colour with the mouse or by typed exact coordinates, selects $k$, generates seeded random sets, browses holes, counts holes for all $k$ with explicit analysis-kind labels, undoes and resets, and can show passive strategy overlays. Its Overmars-29 preset loads the 29-point set without a 6-hole; a *30th-point demo* adds a point, and a chunked re-verification recounts holes without freezing the page. Under the bichromatic rule this preset is disabled with the reason shown, since its facts concern the monochromatic game (Figure 16 shows the sandbox).
 
 **k-strip explorer** and **Parameter Laboratory** are described in Sections 7 and 8; both compute in Web Workers where available and can be cancelled.
 
-![Figure 16. Sandbox. Free placement in either colour, hole browsing and typed coordinates.](figures/fig10-sandbox.png)
+![Figure 16. Sandbox under the monochromatic rule with k = 5: a seeded set of 10 Maker points (seed 7). The diagnostics line reports 40 empty convex pentagons, counted exhaustively over the 10 points, and the hole browser shows hole 2 of 40 (p6, p1, p3, p2, p4). The side panel also offers typed coordinates, the k selector, undo, reset, replay export and the Overmars-29 preset.](figures/fig10-sandbox.png)
 
 ### 11.2 Explanations and wording discipline
 
@@ -492,7 +492,7 @@ Explorer and laboratory experiments export their parameters, seed and log in a v
 
 The interface also adapts to narrow screens (Figure 17). Keyboard controls are listed in Appendix B.
 
-![Figure 17. The interface at a width of 375 pixels.](figures/fig12-mobile-375.png)
+![Figure 17. The k-strip explorer at a viewport width of 375 pixels: the board is stacked above the configuration panel. The board's legend overlaps the lower strips and the lower part of the board is cropped in this capture.](figures/fig12-mobile-375.png)
 
 ---
 
@@ -578,19 +578,19 @@ The natural next steps are the ones this release leaves open: completing the exh
 
 ## References
 
-Entries are given as printed on the first pages of the documents consulted. A DOI is stated only where the document itself prints one.
+Entries were checked against the publishers' or archives' own pages (DOI resolvers, arXiv, CGT, DMTCS, LIPIcs, TU Graz) and against the first pages of the PDFs consulted. Theorem and lemma numbers in this report refer to the PDF versions consulted: arXiv version 2 for [1], the CGT article for [2], the arXiv preprints for [4] and [5].
 
-[1] A. Džuklevski, D. Pálvölgyi, A. Pokrovskiy, C. D. Tóth, T. Valla and L. Verlinde. *Erdős–Szekeres Maker–Breaker Games*. arXiv:2505.15366v2 [math.CO], 16 March 2026. A preliminary version appeared in the Proceedings of the 31st International Computing and Combinatorics Conference (Chengdu, 2025), LNCS 15983, Springer, pp. 248–261, as stated on the paper's first page. No DOI is printed in the PDF; the arXiv identifier is given instead.
+[1] A. Džuklevski, D. Pálvölgyi, A. Pokrovskiy, C. D. Tóth, T. Valla and L. Verlinde. Erdős–Szekeres Maker–Breaker Games. *Theoretical Computer Science* 1077 (2026), Article 115999. DOI 10.1016/j.tcs.2026.115999. Preprint: arXiv:2505.15366 (version 2, 16 March 2026, consulted). A preliminary version appeared in the Proceedings of the 31st International Computing and Combinatorics Conference (Chengdu, 2025), LNCS 15983, Springer, pp. 248–261, as stated on the first page of the arXiv version.
 
-[2] A. K. Das and T. Valla. On Erdős–Szekeres Maker–Breaker games. *Computing in Geometry and Topology* 5(2), Article 3, pp. 3:1–3:10, 2026. DOI 10.57717/cgt.v5i2.73 (as printed in the PDF; CC-BY 4.0).
+[2] A. K. Das and T. Valla. On Erdős–Szekeres Maker–Breaker games. *Computing in Geometry and Topology* 5(2), Article 3, pp. 3:1–3:10, 2026. DOI 10.57717/cgt.v5i2.73.
 
-[3] O. Aichholzer, J. M. Díaz-Báñez, T. Hackl, D. Orden, A. Pilz, I. Ventura and B. Vogtenhuber. Erdős–Szekeres-type games. Extended abstract, 35th European Workshop on Computational Geometry (EuroCG 2019), article 23 (pp. 23:1–23:7). No DOI is printed in the PDF.
+[3] O. Aichholzer, J. M. Díaz-Báñez, T. Hackl, D. Orden, A. Pilz, I. Ventura and B. Vogtenhuber. Erdős–Szekeres-type games. Extended abstract in Proc. 35th European Workshop on Computational Geometry (EuroCG 2019), Utrecht, 2019, pp. 23:1–23:7. No DOI is listed on the publisher's page.
 
-[4] M. J. H. Heule and M. Scheucher. *Happy Ending: An Empty Hexagon in Every Set of 30 Points*. arXiv:2403.00737v1 [cs.CG], 1 March 2024. The preprint prints no venue or DOI; the project's source bundle files it as a TACAS 2024 paper.
+[4] M. J. H. Heule and M. Scheucher. Happy Ending: An Empty Hexagon in Every Set of 30 Points. In B. Finkbeiner and L. Kovács (eds.), *Tools and Algorithms for the Construction and Analysis of Systems (TACAS 2024)*, Springer, 2024. DOI 10.1007/978-3-031-57246-3_5. Preprint: arXiv:2403.00737 (version 1, 1 March 2024, consulted).
 
-[5] B. Subercaseaux, W. Nawrocki, J. Gallicchio, C. Codel, M. Carneiro and M. J. H. Heule. *Formal Verification of the Empty Hexagon Number*. arXiv:2403.17370v1 [cs.CG], 26 March 2024. The preprint prints only the placeholder "10.4230/LIPIcs..." as its DOI; the project's source bundle files it as an ITP 2024 paper.
+[5] B. Subercaseaux, W. Nawrocki, J. Gallicchio, C. Codel, M. Carneiro and M. J. H. Heule. Formal Verification of the Empty Hexagon Number. In *15th International Conference on Interactive Theorem Proving (ITP 2024)*, LIPIcs vol. 309, Article 35, pp. 35:1–35:19, 2024. DOI 10.4230/LIPIcs.ITP.2024.35. Preprint: arXiv:2403.17370 (version 1, 26 March 2024, consulted).
 
-[6] P. Kolipaka and S. Govindarajan. Two player game variant of the Erdős–Szekeres problem. *Discrete Mathematics and Theoretical Computer Science* 15(3), 2013, pp. 73–100. No DOI is printed in the PDF.
+[6] P. Kolipaka and S. Govindarajan. Two player game variant of the Erdős–Szekeres problem. *Discrete Mathematics and Theoretical Computer Science* 15(3), 2013, pp. 73–100. DOI 10.46298/dmtcs.620.
 
 Classical results (the Erdős–Szekeres theorem, Klein's observation, Horton's construction, Harborth's value $h(5)=10$, the existence of $h(6)$ by Gerken and Nicolás) are quoted as reported in [1] and [4] and were not consulted in their original publications.
 

@@ -88,12 +88,12 @@ Proof: Space autoplay, Left/Right step, R restart, 1–4 overlays, C case map, B
 
 ## Research references
 
-1. A. Džuklevski, D. Pálvölgyi, A. Pokrovskiy, C. D. Tóth, T. Valla, L. Verlinde, *Erdős–Szekeres Maker–Breaker Games*, arXiv:2505.15366v2, 2026.
+1. A. Džuklevski, D. Pálvölgyi, A. Pokrovskiy, C. D. Tóth, T. Valla, L. Verlinde, *Erdős–Szekeres Maker–Breaker Games*, Theoretical Computer Science 1077 (2026), Article 115999, DOI 10.1016/j.tcs.2026.115999 (preprint arXiv:2505.15366).
 2. A. K. Das, T. Valla, *On Erdős–Szekeres Maker–Breaker games*, Computing in Geometry and Topology 5(2), Article 3, 2026, DOI 10.57717/cgt.v5i2.73.
-3. O. Aichholzer et al., *Erdős–Szekeres-type games*, EuroCG 2019 (extended abstract).
-4. M. J. H. Heule, M. Scheucher, *Happy Ending: An Empty Hexagon in Every Set of 30 Points*, arXiv:2403.00737, 2024.
-5. B. Subercaseaux et al., *Formal Verification of the Empty Hexagon Number*, arXiv:2403.17370, 2024.
-6. P. Kolipaka, S. Govindarajan, *Two player game variant of the Erdős–Szekeres problem*, DMTCS 15(3), 2013, 73–100.
+3. O. Aichholzer et al., *Erdős–Szekeres-type games*, Proc. 35th EuroCG, 2019, pp. 23:1–23:7 (extended abstract).
+4. M. J. H. Heule, M. Scheucher, *Happy Ending: An Empty Hexagon in Every Set of 30 Points*, TACAS 2024, DOI 10.1007/978-3-031-57246-3_5 (preprint arXiv:2403.00737).
+5. B. Subercaseaux et al., *Formal Verification of the Empty Hexagon Number*, ITP 2024, LIPIcs 309, Article 35, DOI 10.4230/LIPIcs.ITP.2024.35 (preprint arXiv:2403.17370).
+6. P. Kolipaka, S. Govindarajan, *Two player game variant of the Erdős–Szekeres problem*, DMTCS 15(3), 2013, 73–100, DOI 10.46298/dmtcs.620.
 
 ## Documentation
 
