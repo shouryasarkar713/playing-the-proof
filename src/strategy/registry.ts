@@ -728,6 +728,9 @@ function collectMoveReads(move: MoveSpec, into: Set<VarName>): void {
       }
       return;
     case "escape-edge-accept":
+      if (move.exactAnchor !== undefined) {
+        into.add(move.exactAnchor);
+      }
       for (const o of move.options) {
         into.add(o.edge.v);
         into.add(o.ring.v);
@@ -1081,7 +1084,11 @@ function serMove(move: MoveSpec): MoveSpecJSON {
         halves: move.halves,
       };
     case "escape-edge-accept":
-      return { kind: "escape-edge-accept", options: move.options };
+      return {
+        kind: "escape-edge-accept",
+        options: move.options,
+        ...(move.exactAnchor !== undefined ? { exactAnchor: move.exactAnchor } : {}),
+      };
     case "forcing-pair":
       return { kind: "forcing-pair", ring: move.ring, chain: move.chain };
     case "double-extend":
@@ -1115,7 +1122,11 @@ function deMove(json: MoveSpecJSON): MoveSpec {
         halves: json.halves,
       };
     case "escape-edge-accept":
-      return { kind: "escape-edge-accept", options: json.options };
+      return {
+        kind: "escape-edge-accept",
+        options: json.options,
+        ...(json.exactAnchor !== undefined ? { exactAnchor: json.exactAnchor } : {}),
+      };
     case "forcing-pair":
       return { kind: "forcing-pair", ring: json.ring, chain: json.chain };
     case "double-extend":

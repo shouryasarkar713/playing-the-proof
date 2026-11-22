@@ -105,6 +105,7 @@ const classifyRoute = (tag: string, caseId: string) => ({
     on: { tag },
   },
   target: "k7:r2:extend",
+  interaction: "interactive" as const,
 });
 
 const nodes: Record<string, StrategyNode> = {
@@ -117,11 +118,13 @@ const nodes: Record<string, StrategyNode> = {
         when: { kind: "region" as const, expr: patternExpr(mask) },
         target: "k7:pairing",
         bind: { B0: { kind: "last" as const } },
+        interaction: "interactive" as const,
       })),
       {
         case: "k7:b0:outside-hexagon",
         when: { kind: "all" },
         target: "k7:immediate",
+        interaction: "interactive",
       },
     ],
     pre: [{ kind: "exists-k-hole", k: 6 }],
@@ -380,6 +383,7 @@ const nodes: Record<string, StrategyNode> = {
         case: "k7:b1:else",
         when: { kind: "all" },
         target: "k7:r2:extend",
+        interaction: "interactive",
       },
     ],
     post: [{ kind: "exists-k-hole", k: 6 }],

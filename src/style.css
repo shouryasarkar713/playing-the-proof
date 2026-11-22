@@ -739,6 +739,25 @@ input {
   color: var(--verify);
 }
 
+#panel-branches ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+#panel-branches li {
+  margin: 3px 0;
+  font-size: 12px;
+}
+.branch-tag.branch-interactive {
+  color: var(--verify);
+}
+.branch-tag.branch-guided {
+  color: var(--gold);
+}
+.branch-tag.branch-unverified {
+  color: var(--illegal);
+}
+
 .ref {
   font-family: var(--font-mono);
   font-size: 0.82em;

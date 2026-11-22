@@ -3,6 +3,7 @@
 // strategy/why/invariants panels, win card, keyboard map.
 import { startSession } from "../../session/commit.ts";
 import {
+  branchInteractions,
   caseData,
   invariantStatuses,
   nodeExplanation,
@@ -24,6 +25,7 @@ import { mountTimeline } from "../timeline.ts";
 import type { TimelineHandle } from "../timeline.ts";
 import { renderInvariants } from "../panels/invariants.ts";
 import { renderStrategy } from "../panels/strategy.ts";
+import { branchLabel, renderBranches } from "../panels/branches.ts";
 import { renderWhy } from "../panels/why.ts";
 import {
   clientToLocal,
@@ -83,17 +85,21 @@ export function mountProof(
   whyEl.id = "panel-why";
   const invEl = document.createElement("section");
   invEl.id = "panel-invariants";
+  const branchEl = document.createElement("section");
+  branchEl.id = "panel-branches";
   const sampleRow = document.createElement("div");
   sampleRow.id = "sample-row";
   const timelineEl = document.createElement("div");
   timelineEl.id = "timeline";
   const cardHost = document.createElement("div");
   cardHost.id = "win-card-host";
-  panels.append(strategyEl, whyEl, invEl, sampleRow, timelineEl, cardHost);
+  panels.append(strategyEl, branchEl, whyEl, invEl, sampleRow, timelineEl, cardHost);
 
   const paintPanels = (state: GameState): void => {
     const stats = sessionStats(state);
     renderStrategy(strategyEl, state, stats, statusBadge(state, shell.ctx));
+    const branches = branchInteractions(state, shell.ctx);
+    renderBranches(branchEl, branches);
     renderWhy(whyEl, nodeExplanation(state, shell.ctx));
     renderInvariants(invEl, invariantStatuses(state, shell.ctx));
     paintSamples(state);
@@ -127,8 +133,18 @@ export function mountProof(
     data.samples.forEach((sample, i) => {
       const btn = document.createElement("button");
       const caseId = data.cases[i] as string;
+      const klass = branchLabel(
+        branchInteractions(state, shell.ctx)?.find((b) => b.caseId === caseId)
+          ?.interaction ?? null,
+      );
+      const suffix = klass === null ? "" : ` (${klass})`;
       btn.textContent =
-        sample === null ? `${caseId} (no point)` : `Play ${caseId}`;
+        sample === null
+          ? `${caseId} (no point)${suffix}`
+          : `Play ${caseId}${suffix}`;
+      if (klass !== null) {
+        btn.setAttribute("aria-label", `Play ${caseId}, ${klass}`);
+      }
       btn.disabled = sample === null;
       btn.addEventListener("click", () => playSample(i));
       sampleRow.appendChild(btn);

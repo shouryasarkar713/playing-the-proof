@@ -310,6 +310,36 @@ function specLabel(spec: {
   }
 }
 
+export type BranchInteraction = "interactive" | "guided" | "unverified";
+
+export interface BranchInfo {
+  readonly caseId: string;
+  readonly interaction: BranchInteraction | null;
+}
+
+// branchInteractions: the response classes (routes) of the parked classify
+// node in declaration order with their declared interaction class, or null
+// when no classify node is parked / the strategy declares none. Pure data
+// read from the def, available BEFORE the user enters a branch.
+export function branchInteractions(
+  state: GameState,
+  ctx: RuntimeCtx,
+): BranchInfo[] | null {
+  if (state.strategy === null || state.terminal !== null) {
+    return null;
+  }
+  const def = activeDef(state, ctx);
+  const node = nodeOf(def, state.strategy.nodeId);
+  if (node.role !== "classify-breaker" || node.routes === undefined) {
+    return null;
+  }
+  const out = node.routes.map((r) => ({
+    caseId: r.case,
+    interaction: r.interaction ?? null,
+  }));
+  return out.some((b) => b.interaction !== null) ? out : null;
+}
+
 export interface CaseData {
   cells: EffectiveCells;
   samples: ReadonlyArray<SampleReply | null>;

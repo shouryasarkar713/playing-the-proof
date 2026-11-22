@@ -8,6 +8,7 @@ import { startSession } from "../../session/commit.ts";
 import { navigate } from "../../session/navigate.ts";
 import {
   attackLog,
+  branchInteractions,
   caseWash,
   invariantStatuses,
   nodeExplanation,
@@ -31,6 +32,7 @@ import { mountTimeline } from "../timeline.ts";
 import type { TimelineHandle } from "../timeline.ts";
 import { renderInvariants } from "../panels/invariants.ts";
 import { renderStrategy } from "../panels/strategy.ts";
+import { renderBranches } from "../panels/branches.ts";
 import { renderWhy } from "../panels/why.ts";
 import {
   clientToLocal,
@@ -108,6 +110,8 @@ export function mountBreak(
   whyEl.id = "panel-why";
   const invEl = document.createElement("section");
   invEl.id = "panel-invariants";
+  const branchEl = document.createElement("section");
+  branchEl.id = "panel-branches";
   const threatEl = document.createElement("div");
   threatEl.id = "threat-line";
   threatEl.setAttribute("aria-live", "polite");
@@ -146,6 +150,7 @@ export function mountBreak(
   terminalHost.id = "terminal-host";
   panels.append(
     strategyEl,
+    branchEl,
     whyEl,
     invEl,
     threatEl,
@@ -183,6 +188,7 @@ export function mountBreak(
   const paintPanels = (state: GameState): void => {
     const stats = sessionStats(state);
     renderStrategy(strategyEl, state, stats, statusBadge(state, shell.ctx));
+    renderBranches(branchEl, branchInteractions(state, shell.ctx));
     renderWhy(whyEl, nodeExplanation(state, shell.ctx));
     paintOutcome(state);
     renderInvariants(invEl, invariantStatuses(state, shell.ctx));
