@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 660" width="900" height="660" font-family="Helvetica, Arial, sans-serif">
+  <title>Module layering of Playing the Proof</title>
+  <desc>Ten layered modules with downward-only imports, plus two leaf modules (kstrip, lab) importable only by the interface layer.</desc>
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#444"/></marker></defs>
+  <rect width="900" height="660" fill="#ffffff"/>
+  <text x="20" y="28" font-size="16" font-weight="bold" fill="#111">Module layering of src/</text>
+  <text x="20" y="46" font-size="11" fill="#555">An arrow points from importer to imported module. Lint zones and tests/architecture.test.ts enforce the rules; the graph is acyclic.</text>
+  <rect x="34" y="62" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="80" font-size="12" font-weight="bold" fill="#1d3a66">L9  ui</text>
+  <text x="46" y="95" font-size="10.5" fill="#333">DOM, modes, panels, timeline, file I/O, workers.</text>
+  <text x="46" y="108" font-size="10.5" fill="#555">top layer (lint-unrestricted); strategy/verification reached via engine</text>
+  <rect x="34" y="120" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="138" font-size="12" font-weight="bold" fill="#1d3a66">L8  viz</text>
+  <text x="46" y="153" font-size="10.5" fill="#333">scene descriptors, palette, projection (only float geometry).</text>
+  <text x="46" y="166" font-size="10.5" fill="#555">imports: game, strategy, verification, geometry</text>
+  <rect x="34" y="178" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="196" font-size="12" font-weight="bold" fill="#1d3a66">L7  replay</text>
+  <text x="46" y="211" font-size="10.5" fill="#333">wire formats v2/v3, migration, hash-chain fold, experiment files.</text>
+  <text x="46" y="224" font-size="10.5" fill="#555">imports: engine, game, geometry</text>
+  <rect x="34" y="236" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="254" font-size="12" font-weight="bold" fill="#1d3a66">L6  session</text>
+  <text x="46" y="269" font-size="10.5" fill="#333">the only mutable module: store, transaction tree, cursor.</text>
+  <text x="46" y="282" font-size="10.5" fill="#555">imports: game, engine</text>
+  <rect x="34" y="294" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="312" font-size="12" font-weight="bold" fill="#1d3a66">L5  engine</text>
+  <text x="46" y="327" font-size="10.5" fill="#333">pure reducer: legality, routing, verification, explanations.</text>
+  <text x="46" y="340" font-size="10.5" fill="#555">imports: game, strategy, verification, explain, geometry</text>
+  <rect x="34" y="352" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="370" font-size="12" font-weight="bold" fill="#1d3a66">L4  explain</text>
+  <text x="46" y="385" font-size="10.5" fill="#333">claim tiers, templates, ClaimLint, help and about text.</text>
+  <text x="46" y="398" font-size="10.5" fill="#555">imports: game, strategy, geometry</text>
+  <rect x="34" y="410" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="428" font-size="12" font-weight="bold" fill="#1d3a66">L3  verification</text>
+  <text x="46" y="443" font-size="10.5" fill="#333">node pre/post checks, cell checks, partitions, twin checkers.</text>
+  <text x="46" y="456" font-size="10.5" fill="#555">imports: geometry, game, strategy</text>
+  <rect x="34" y="468" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="486" font-size="12" font-weight="bold" fill="#1d3a66">L2  strategy</text>
+  <text x="46" y="501" font-size="10.5" fill="#333">declarative strategy AST, registry, evaluators, k=5/6/7/8 defs.</text>
+  <text x="46" y="514" font-size="10.5" fill="#555">imports: geometry, game</text>
+  <rect x="34" y="526" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="544" font-size="12" font-weight="bold" fill="#1d3a66">L1  game</text>
+  <text x="46" y="559" font-size="10.5" fill="#333">state, legality, placement, game modes, FNV-1a hash, integrity.</text>
+  <text x="46" y="572" font-size="10.5" fill="#555">imports: geometry</text>
+  <rect x="34" y="584" width="540" height="52" rx="4" fill="#eef3fb" stroke="#4a6fa5"/>
+  <text x="46" y="602" font-size="12" font-weight="bold" fill="#1d3a66">L0  geometry</text>
+  <text x="46" y="617" font-size="10.5" fill="#333">bigint rationals, orient, hulls, k-holes, regions, extensions.</text>
+  <text x="46" y="630" font-size="10.5" fill="#555">imports: nothing outside geometry</text>
+  <line x1="16" y1="70" x2="16" y2="624" stroke="#444" stroke-width="1.5"/>
+  <text x="24" y="640" font-size="10" fill="#555">imports point downward</text>
+  <rect x="610" y="150" width="270" height="116" rx="4" fill="#f4f8ee" stroke="#6b8f3a"/>
+  <text x="622" y="170" font-size="12" font-weight="bold" fill="#33501a">kstrip (headless k-strip core)</text>
+  <text x="622" y="188" font-size="10.5" fill="#333">regions, cones, pairing, ledger, recursion,</text>
+  <text x="622" y="202" font-size="10.5" fill="#333">executor, Breaker policies, trace, replay log</text>
+  <text x="622" y="224" font-size="10.5" fill="#555">imports: geometry only</text>
+  <text x="622" y="240" font-size="10.5" fill="#555">imported by: ui only</text>
+  <rect x="610" y="290" width="270" height="116" rx="4" fill="#f4f8ee" stroke="#6b8f3a"/>
+  <text x="622" y="310" font-size="12" font-weight="bold" fill="#33501a">lab (Research / Parameter Lab)</text>
+  <text x="622" y="328" font-size="10.5" fill="#333">regime table, classifier, bounds, encoding</text>
+  <text x="622" y="342" font-size="10.5" fill="#333">registry, bounded simulation</text>
+  <text x="622" y="364" font-size="10.5" fill="#555">imports: geometry, game</text>
+  <text x="622" y="380" font-size="10.5" fill="#555">imported by: ui only</text>
+  <path d="M574,90 L592,90 L592,208 L610,208" fill="none" stroke="#444" stroke-width="1.4"/>
+  <path d="M592,150 L592,348 L610,348" fill="none" stroke="#444" stroke-width="1.4"/>
+  <text x="610" y="136" font-size="10.5" fill="#555">ui consumes both leaf modules</text>
+  <path d="M610,250 L596,250 L596,606 L574,606" fill="none" stroke="#444" stroke-width="1.2" stroke-dasharray="5 3"/>
+  <path d="M610,392 L600,392 L600,548 L574,548" fill="none" stroke="#444" stroke-width="1.2" stroke-dasharray="5 3"/>
+  <text x="610" y="424" font-size="10.5" fill="#555">dashed: leaf modules import only from L0 / L1</text>
+  <rect x="610" y="450" width="270" height="170" rx="4" fill="#fbf6ec" stroke="#b88a2e"/>
+  <text x="622" y="470" font-size="12" font-weight="bold" fill="#6b4c10">Further enforced rules</text>
+  <g font-size="10.5" fill="#222">
+  <text x="622" y="489">Pure layers: no DOM, timer, storage,</text>
+  <text x="622" y="503">network or message-passing tokens.</text>
+  <text x="622" y="523">Float Math.* only in viz/projection.ts.</text>
+  <text x="622" y="541">orient formula only in geometry/predicates.ts.</text>
+  <text x="622" y="559">One integrityReport constructor (game/).</text>
+  <text x="622" y="577">strategy/ never evaluates invariants;</text>
+  <text x="622" y="591">verification/ does.</text>
+  <text x="622" y="609">Slow test tier is a separate project.</text>
+  </g>
+  <polygon points="610,208 602,204 602,212" fill="#444"/>
+  <polygon points="610,348 602,344 602,352" fill="#444"/>
+  <polygon points="574,606 582,602 582,610" fill="#444"/>
+  <polygon points="574,548 582,544 582,552" fill="#444"/>
+  <polygon points="16,628 12,619 20,619" fill="#444"/>
+</svg>
